@@ -45,7 +45,7 @@ MOIS_FR = {
 
 def _fcfa(v: float) -> str:
     if v == 0:
-        return "—"
+        return "-"
     return f"{int(round(v)):,}".replace(",", " ")
 
 
@@ -178,7 +178,7 @@ def generate_recap_pdf(rows: list[dict], periode: str) -> bytes:
             str(i),
             Paragraph(f"{r['prenom']} {r['nom']}", cell_style),
             ROLE_LABELS.get(r["role"], r["role"]),
-            r.get("region", "—"),
+            r.get("region", "-"),
             _fcfa(fixe),
             _fcfa(quant),
             _fcfa(qual),

@@ -48,7 +48,7 @@ def _fcfa(v: float) -> str:
 
 def _pct(v) -> str:
     if v is None:
-        return "—"
+        return "-"
     return f"{float(v):.1f}%"
 
 
@@ -110,7 +110,7 @@ def generate_pv_pdf(bonus, employee, region_nom: str = "", periode: str = "") ->
     elements.append(Paragraph(" IDENTIFICATION DU COMMERCIAL", section_style))
     id_data = [
         ["Nom & Prénom", nom_complet, "Rôle", role_label],
-        ["Zone / Région", region_nom or "—", "Période", mois_annee],
+        ["Zone / Région", region_nom or "-", "Période", mois_annee],
         ["Date d'édition", datetime.now().strftime("%d/%m/%Y"), "Statut prime", str(bonus.statut.value if hasattr(bonus.statut, 'value') else bonus.statut)],
     ]
     id_table = Table(id_data, colWidths=[4*cm, 6.5*cm, 3*cm, 3.5*cm])
@@ -142,9 +142,9 @@ def generate_pv_pdf(bonus, employee, region_nom: str = "", periode: str = "") ->
         ],
     ]
     if bonus.taux_atteinte_pates is not None:
-        perf_data.append(["dont Pâtes (T)", "—", _pct(bonus.taux_atteinte_pates), ""])
+        perf_data.append(["dont Pâtes (T)", "-", _pct(bonus.taux_atteinte_pates), ""])
     if bonus.taux_atteinte_autres is not None:
-        perf_data.append(["dont Autres gammes (T)", "—", _pct(bonus.taux_atteinte_autres), ""])
+        perf_data.append(["dont Autres gammes (T)", "-", _pct(bonus.taux_atteinte_autres), ""])
 
     perf_table = Table(perf_data, colWidths=[4*cm, 4*cm, 4*cm, 5*cm])
     perf_table.setStyle(TableStyle([
@@ -166,10 +166,11 @@ def generate_pv_pdf(bonus, employee, region_nom: str = "", periode: str = "") ->
     elements.append(Paragraph(" CRITÈRES QUALITATIFS", section_style))
 
     elig = bool(bonus.qualitative_eligible)
-    elig_text = "✓ ÉLIGIBLE (taux ≥ 90%)" if elig else "✗ NON ÉLIGIBLE (taux < 90%)"
+    elig_text = "ELIGIBLE (taux >= 90%)" if elig else "NON ELIGIBLE (taux < 90%)"
     elig_color = VERT_FONCE if elig else ROUGE
+    elig_hex = elig_color.hexval()[2:]
     elements.append(Paragraph(
-        f'<font color="#{elig_color.hexval()[2:]}"><b>{elig_text}</b></font>',
+        f'<font color="#{elig_hex}"><b>{elig_text}</b></font>',
         ParagraphStyle("elig", fontSize=9, spaceAfter=6, alignment=TA_CENTER)
     ))
 
@@ -177,9 +178,9 @@ def generate_pv_pdf(bonus, employee, region_nom: str = "", periode: str = "") ->
     for c in bonus.qual_details:
         qual_data.append([
             Paragraph(c.critere_libelle, ParagraphStyle("crit", fontSize=8)),
-            c.valeur_atteinte or "—",
-            c.seuil_requis or "—",
-            "✓" if c.eligible else "✗",
+            c.valeur_atteinte or "-",
+            c.seuil_requis or "-",
+            "OUI" if c.eligible else "NON",
             _fcfa(float(c.montant_max)),
             _fcfa(float(c.montant_accorde)),
         ])
