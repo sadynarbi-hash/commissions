@@ -20,7 +20,8 @@ OR          = colors.HexColor("#F9A825")
 GRIS_CLAIR  = colors.HexColor("#F5F5F5")
 ROUGE       = colors.HexColor("#C62828")
 
-LOGO_PATH = "/Users/damesady/developpement/Commerciaux/frontend/public/logo-nma.png"
+import os as _os
+LOGO_PATH = _os.path.normpath(_os.path.join(_os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', 'logo-nma.png'))
 
 ROLE_LABELS = {
     "RCR": "Responsable Commercial Régional",
