@@ -71,7 +71,8 @@ class SalesforceConnector:
                 Division__c,
                 date_de_visite__c
             FROM VisiteLine__c
-            WHERE (
+            WHERE Visite_id__r.State__c != 'Nouveau'
+            AND (
                 (Visite_id__r.Datedone__c >= {df} AND Visite_id__r.Datedone__c <= {dt})
                 OR (Visite_id__r.Datedone__c = null
                     AND Visite_id__r.Predicted_date__c >= {df}
