@@ -177,8 +177,15 @@ export default function Bonuses() {
                 a.download = `PV_${emp ? emp.nom + '_' + emp.prenom : r.id}_${periode}.pdf`
                 a.click()
                 URL.revokeObjectURL(url)
-              } catch {
-                message.error('Erreur génération PDF')
+              } catch (err: any) {
+                const detail = err?.response?.data
+                if (detail instanceof Blob) {
+                  const text = await detail.text()
+                  try { message.error(JSON.parse(text).detail?.substring(0, 200)) }
+                  catch { message.error(text.substring(0, 200)) }
+                } else {
+                  message.error(String(err?.message || 'Erreur génération PDF'))
+                }
               }
             }}
           >

@@ -74,10 +74,11 @@ def generate_recap_pdf(rows: list[dict], periode: str) -> bytes:
     elements = []
 
     # ── En-tête ────────────────────────────────────────────────────
-    try:
+    import os
+    if os.path.exists(LOGO_PATH):
         logo = Image(LOGO_PATH, width=3*cm, height=1.7*cm)
         logo.hAlign = "LEFT"
-    except Exception:
+    else:
         logo = Spacer(3*cm, 1.7*cm)
 
     header_data = [[

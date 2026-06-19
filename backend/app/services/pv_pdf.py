@@ -80,10 +80,11 @@ def generate_pv_pdf(bonus, employee, region_nom: str = "", periode: str = "") ->
     elements = []
 
     # ── En-tête ───────────────────────────────────────────────
-    try:
+    import os
+    if os.path.exists(LOGO_PATH):
         logo = Image(LOGO_PATH, width=3.5*cm, height=2*cm)
         logo.hAlign = "LEFT"
-    except Exception:
+    else:
         logo = Spacer(1, 2*cm)
 
     header_data = [[

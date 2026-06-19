@@ -435,6 +435,7 @@ def upsert_manual_criteria(body: ManualCriteriaInput, db: Session = Depends(get_
 @router.get("/bonuses/{bonus_id}/pv")
 def download_pv(bonus_id: int, db: Session = Depends(get_db)):
     """Génère le PV de commission PDF pour un bonus."""
+    import traceback
     from ..services.pv_pdf import generate_pv_pdf
     b = db.query(Bonus).filter(Bonus.id == bonus_id).first()
     if not b:
@@ -443,7 +444,10 @@ def download_pv(bonus_id: int, db: Session = Depends(get_db)):
     region_nom = emp.region.nom if emp and emp.region else ""
     period_obj = db.query(BonusPeriod).filter(BonusPeriod.id == b.period_id).first()
     periode_str = period_obj.periode if period_obj else ""
-    pdf_bytes = generate_pv_pdf(b, emp, region_nom, periode_str)
+    try:
+        pdf_bytes = generate_pv_pdf(b, emp, region_nom, periode_str)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur PDF: {traceback.format_exc()}")
     nom = f"{emp.prenom}_{emp.nom}".replace(" ", "_") if emp else str(bonus_id)
     filename = f"PV_commission_{nom}_{periode_str}.pdf"
     from fastapi.responses import Response
