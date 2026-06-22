@@ -168,7 +168,7 @@ export default function Bonuses() {
     {
       title: 'TOTAL',
       dataIndex: 'total',
-      render: (v: number) => <strong style={{ color: '#1890ff' }}>{formatFCFA(v)}</strong>,
+      render: (v: number) => <strong style={{ color: '#1890ff', whiteSpace: 'nowrap' }}>{formatFCFA(v)}</strong>,
       sorter: (a: Bonus, b: Bonus) => a.total - b.total,
     },
     {
@@ -357,7 +357,7 @@ export default function Bonuses() {
                 <span style={{ fontSize: 12, color: '#888' }}>Total général</span>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={9}>
-                <span style={{ fontSize: 12, color: '#1890ff', fontWeight: 600 }}>{formatFCFA(total)}</span>
+                <span style={{ fontSize: 12, color: '#1890ff', fontWeight: 600, whiteSpace: 'nowrap' }}>{formatFCFA(total)}</span>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={10} colSpan={2} />
             </Table.Summary.Row>
