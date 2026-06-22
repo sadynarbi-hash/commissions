@@ -352,12 +352,12 @@ export default function Bonuses() {
           size="small"
           onRow={(record: Bonus) => rowBg(record.taux_atteinte_global, (record.volume_objectif || 0) > 0)}
           summary={() => (
-            <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 600 }}>
+            <Table.Summary.Row style={{ background: '#fafafa' }}>
               <Table.Summary.Cell index={0} colSpan={9}>
-                Total général
+                <span style={{ fontSize: 12, color: '#888' }}>Total général</span>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={9}>
-                <strong style={{ color: '#1890ff' }}>{formatFCFA(total)}</strong>
+                <span style={{ fontSize: 12, color: '#1890ff', fontWeight: 600 }}>{formatFCFA(total)}</span>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={10} colSpan={2} />
             </Table.Summary.Row>
