@@ -168,6 +168,7 @@ export default function Bonuses() {
     {
       title: 'TOTAL',
       dataIndex: 'total',
+      width: 120,
       render: (v: number) => <strong style={{ color: '#1890ff', whiteSpace: 'nowrap' }}>{formatFCFA(v)}</strong>,
       sorter: (a: Bonus, b: Bonus) => a.total - b.total,
     },
