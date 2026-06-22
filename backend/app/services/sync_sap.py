@@ -163,18 +163,23 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
         collections_m1 = connector.get_collections(date_m1_from, date_m1_to)
 
         # Agréger par (emp_id, periode) : CA net + MontantPaye — M et M-1
+        # Aussi par (emp_id, client_code, periode) pour ClientMonthlySale
         recouv_agg: dict[tuple, dict] = {}
+        recouv_client: dict[tuple, float] = {}  # (emp_id, client_code, periode) → montant_recouvre
         for r in list(collections) + list(collections_m1):
             sap_code = str(r.get("sap_code_employe", "") or "")
             emp      = employes.get(sap_code)
             if not emp:
                 continue
-            per_col  = str(r.get("periode") or periode)[:7]
-            key      = (emp.id, per_col)
+            per_col      = str(r.get("periode") or periode)[:7]
+            client_code  = str(r.get("client_code") or "")
+            key          = (emp.id, per_col)
+            client_key   = (emp.id, client_code, per_col)
             if key not in recouv_agg:
                 recouv_agg[key] = {"facture": 0.0, "recouvre": 0.0}
             recouv_agg[key]["facture"]  += float(r.get("montant_facture")  or 0)
             recouv_agg[key]["recouvre"] += float(r.get("montant_recouvre") or 0)
+            recouv_client[client_key] = recouv_client.get(client_key, 0.0) + float(r.get("montant_recouvre") or 0)
 
         # Mise à jour montant_ht + montant_recouvre sur SaleData — prorata CA par gamme
         recouv_updated = 0
@@ -194,12 +199,28 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
 
         db.commit()
 
+        # ── Mise à jour montant_recouvre par client sur ClientMonthlySale existants ──
+        # Collections (factures) et BLs peuvent avoir des périodes différentes.
+        # On fait un passage séparé sur tous les enregistrements de recouv_client
+        # pour patcher les lignes existantes, quelle que soit l'origine de la période.
+        for (emp_id, client_code, per_col), mnt_rec in recouv_client.items():
+            if mnt_rec <= 0:
+                continue
+            db.query(ClientMonthlySale).filter(
+                ClientMonthlySale.employee_id == emp_id,
+                ClientMonthlySale.client_code == client_code,
+                ClientMonthlySale.periode     == per_col,
+                ClientMonthlySale.annee_n1    == False,
+            ).update({"montant_recouvre": mnt_rec}, synchronize_session=False)
+        db.commit()
+
         # ── Volumes clients mois courant → ClientMonthlySale ─────────────
         cms_upserted = 0
         for (sap_code, client_code, per), data in client_agg.items():
-            emp       = data["employee"]
-            volume    = float(data["volume_kg"] / KG_TO_TONNE)
-            montant_c = float(data["montant"])
+            emp          = data["employee"]
+            volume       = float(data["volume_kg"] / KG_TO_TONNE)
+            montant_c    = float(data["montant"])
+            mnt_recouv_c = recouv_client.get((emp.id, client_code, per), 0.0)
             existing = db.query(ClientMonthlySale).filter(
                 ClientMonthlySale.employee_id == emp.id,
                 ClientMonthlySale.client_code == client_code,
@@ -207,18 +228,20 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
                 ClientMonthlySale.annee_n1    == False,
             ).first()
             if existing:
-                existing.volume     = volume
-                existing.montant_ca = montant_c
-                existing.client_nom = data["client_nom"]
+                existing.volume           = volume
+                existing.montant_ca       = montant_c
+                existing.montant_recouvre = mnt_recouv_c
+                existing.client_nom       = data["client_nom"]
             else:
                 db.add(ClientMonthlySale(
-                    employee_id = emp.id,
-                    client_code = client_code,
-                    client_nom  = data["client_nom"],
-                    periode     = per,
-                    volume      = volume,
-                    montant_ca  = montant_c,
-                    annee_n1    = False,
+                    employee_id      = emp.id,
+                    client_code      = client_code,
+                    client_nom       = data["client_nom"],
+                    periode          = per,
+                    volume           = volume,
+                    montant_ca       = montant_c,
+                    montant_recouvre = mnt_recouv_c,
+                    annee_n1         = False,
                 ))
             cms_upserted += 1
         db.commit()

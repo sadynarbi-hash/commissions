@@ -93,4 +93,5 @@ class ClientMonthlySale(Base):
     periode: Mapped[str] = mapped_column(String(7))
     volume: Mapped[float] = mapped_column(Numeric(15, 3), default=0)
     montant_ca: Mapped[float] = mapped_column(Numeric(15, 2), default=0)
+    montant_recouvre: Mapped[float] = mapped_column(Numeric(15, 2), default=0)
     annee_n1: Mapped[bool] = mapped_column(default=False)
