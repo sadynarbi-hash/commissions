@@ -81,6 +81,15 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
     vol_autres = vol_total - vol_pates
     mnt_facture = sum(float(s.montant_ht) for s in sales)
 
+    # SV fallback : si les objectifs par gamme sont absents mais obj_all existe,
+    # répartir obj_all proportionnellement au réalisé pâtes/autres.
+    if (employee.type_poste == _TP.SV
+            and obj_pates == 0 and obj_bvf == 0 and obj_farine == 0
+            and obj_all > 0 and vol_total > 0):
+        ratio_pates = vol_pates / vol_total
+        obj_pates   = obj_all * ratio_pates
+        obj_bvf     = obj_all * (1 - ratio_pates)
+
     # ── Recouvrement M-1 (règle métier NMA) ───────────────
     # Le taux de recouvrement du bonus de mois M = MontantPayé(M-1) / CA(M-1)
     annee_i, mois_i = int(periode[:4]), int(periode[5:7])
