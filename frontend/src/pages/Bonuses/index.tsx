@@ -230,9 +230,9 @@ export default function Bonuses() {
 
       {/* ── Barre d'actions ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1B5E20' }}>
+        <span style={{ fontSize: 14, color: '#1B5E20', fontWeight: 600 }}>
           Commissions — {dayjs(periode).format('MMMM YYYY')}
-        </Title>
+        </span>
         <Space wrap>
           <DatePicker
             picker="month"
