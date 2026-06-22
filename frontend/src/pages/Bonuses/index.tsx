@@ -357,8 +357,8 @@ export default function Bonuses() {
               <Table.Summary.Cell index={0} colSpan={9}>
                 <span style={{ fontSize: 12, color: '#888' }}>Total général</span>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={9} style={{ whiteSpace: 'nowrap', minWidth: 120 }}>
-                <span style={{ fontSize: 12, color: '#1890ff', fontWeight: 600 }}>{formatFCFA(total)}</span>
+              <Table.Summary.Cell index={9}>
+                <div style={{ whiteSpace: 'nowrap', minWidth: 120, fontSize: 12, color: '#1890ff', fontWeight: 600 }}>{formatFCFA(total)}</div>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={10} colSpan={2} />
             </Table.Summary.Row>
