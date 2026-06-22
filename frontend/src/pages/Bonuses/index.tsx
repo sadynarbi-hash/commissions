@@ -396,15 +396,15 @@ export default function Bonuses() {
                     {selected.taux_atteinte_autres.toFixed(1)}%
                   </Descriptions.Item>
                 )}
-                <Descriptions.Item label="Prime fixe">
+                <Descriptions.Item label="Commission fixe">
                   {formatFCFA(selected.prime_suivi_fixe)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Prime quantitative">
+                <Descriptions.Item label="Commission quantitative">
                   <span style={{ color: selected.prime_quantitative > 0 ? '#1B5E20' : '#aaa', fontWeight: 600 }}>
                     {formatFCFA(selected.prime_quantitative)}
                   </span>
                 </Descriptions.Item>
-                <Descriptions.Item label="Prime qualitative">
+                <Descriptions.Item label="Commission qualitative">
                   <span style={{ color: selected.prime_qualitative > 0 ? '#52c41a' : '#aaa', fontWeight: 600 }}>
                     {formatFCFA(selected.prime_qualitative)}
                   </span>
@@ -423,7 +423,7 @@ export default function Bonuses() {
                 </Descriptions.Item>
               </Descriptions>
 
-              <Divider>Critères prime qualitative</Divider>
+              <Divider>Critères commission qualitative</Divider>
               {selected.qual_details.map(c => (
                 <div
                   key={c.id}
