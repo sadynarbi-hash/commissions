@@ -94,6 +94,7 @@ class SAPConnectorBase(ABC):
 
         CA          = LineTotal × (1 − DiscPrcnt/100)   par ligne
         MontantPaye = CA × (PaidToDate / DocTotal)       prorata paiement par facture
+                    OU CA entier si DocStatus='C'         (lettrée via OC/réconciliation)
 
         Agrégé par (CardCode, SlpCode, période mensuelle).
         """
@@ -111,8 +112,12 @@ class SAPConnectorBase(ABC):
                 E.U_RESPONSABLE                             AS commercial_nom,
                 CONVERT(VARCHAR(7), T1.DocDate, 120)        AS periode,
                 T0.LineTotal * (1 - T1.DiscPrcnt / 100.0)  AS CA,
-                T0.LineTotal * (1 - T1.DiscPrcnt / 100.0)
-                    * ISNULL(T1.PaidToDate / NULLIF(T1.DocTotal, 0), 0) AS MontantPaye
+                CASE
+                    WHEN T1.DocStatus = 'C'
+                        THEN T0.LineTotal * (1 - T1.DiscPrcnt / 100.0)
+                    ELSE T0.LineTotal * (1 - T1.DiscPrcnt / 100.0)
+                        * ISNULL(T1.PaidToDate / NULLIF(T1.DocTotal, 0), 0)
+                END AS MontantPaye
             FROM INV1 T0
             INNER JOIN OINV T1                ON T0.DocEntry = T1.DocEntry
             INNER JOIN OCRD C                 ON T1.CardCode = C.CardCode
@@ -128,8 +133,12 @@ class SAPConnectorBase(ABC):
                 E.U_RESPONSABLE,
                 CONVERT(VARCHAR(7), T1.DocDate, 120),
                 -(T0.LineTotal * (1 - T1.DiscPrcnt / 100.0)),
-                -(T0.LineTotal * (1 - T1.DiscPrcnt / 100.0)
-                    * ISNULL(T1.PaidToDate / NULLIF(T1.DocTotal, 0), 0))
+                CASE
+                    WHEN T1.DocStatus = 'C'
+                        THEN -(T0.LineTotal * (1 - T1.DiscPrcnt / 100.0))
+                    ELSE -(T0.LineTotal * (1 - T1.DiscPrcnt / 100.0)
+                        * ISNULL(T1.PaidToDate / NULLIF(T1.DocTotal, 0), 0))
+                END
             FROM RIN1 T0
             INNER JOIN ORIN T1                ON T0.DocEntry = T1.DocEntry
             INNER JOIN OCRD C                 ON T1.CardCode = C.CardCode
