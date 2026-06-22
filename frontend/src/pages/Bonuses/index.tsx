@@ -42,7 +42,11 @@ export default function Bonuses() {
   const load = () => {
     setLoading(true)
     Promise.all([getBonuses({ periode }), getEmployees()])
-      .then(([bs, emps]) => { setBonuses(bs); setEmployees(emps) })
+      .then(([bs, emps]) => {
+        setBonuses(bs)
+        setEmployees(emps)
+        setSelected(prev => prev ? (bs.find((b: Bonus) => b.id === prev.id) ?? prev) : null)
+      })
       .finally(() => setLoading(false))
   }
 
