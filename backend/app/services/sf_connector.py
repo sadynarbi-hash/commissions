@@ -72,12 +72,8 @@ class SalesforceConnector:
                 date_de_visite__c
             FROM VisiteLine__c
             WHERE Account__c != null
-            AND (
-                (Visite_id__r.Datedone__c >= {df} AND Visite_id__r.Datedone__c <= {dt})
-                OR (Visite_id__r.Datedone__c = null
-                    AND Visite_id__r.Predicted_date__c >= {df}
-                    AND Visite_id__r.Predicted_date__c <= {dt})
-            )
+            AND date_de_visite__c >= {df}
+            AND date_de_visite__c <= {dt}
             {user_filter}
         """
         try:
