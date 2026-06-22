@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
   Table, DatePicker, Button, Tag, Space, Progress, Typography,
-  Drawer, Descriptions, Divider, message, Modal, Input, Spin,
-  Badge, Popconfirm, Select,
+  Drawer, Descriptions, Divider, message, Modal, Input,
+  Badge, Select, Card, Statistic, Row, Col, Switch,
 } from 'antd'
 import {
   CalculatorOutlined, CheckCircleOutlined,
   DownloadOutlined, EyeOutlined, FilePdfOutlined,
+  TrophyOutlined, TeamOutlined, WalletOutlined, RiseOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -28,6 +29,14 @@ const STATUT_COLORS: Record<string, string> = {
 
 const formatFCFA = (v: number) => new Intl.NumberFormat('fr-FR').format(Math.round(v)) + ' F'
 
+const rowBg = (taux?: number | null, hasObj?: boolean) => {
+  if (!hasObj || taux == null) return {}
+  if (taux >= 115) return { style: { background: '#e6f4ea' } }
+  if (taux >= 100) return { style: { background: '#f0faf0' } }
+  if (taux >= 90)  return { style: { background: '#fff8e6' } }
+  return { style: { background: '#fff1f0' } }
+}
+
 export default function Bonuses() {
   const [periode, setPeriode] = useState(dayjs().format('YYYY-MM'))
   const [bonuses, setBonuses] = useState<Bonus[]>([])
@@ -38,6 +47,7 @@ export default function Bonuses() {
   const [validateModal, setValidateModal] = useState(false)
   const [validateurNom, setValidateurNom] = useState('')
   const [roleFilter, setRoleFilter] = useState<string | null>(null)
+  const [hideZeros, setHideZeros] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -133,26 +143,32 @@ export default function Bonuses() {
       sorter: (a: Bonus, b: Bonus) => (a.nb_visites || 0) - (b.nb_visites || 0),
     },
     {
-      title: 'Commission fixe',
+      title: 'Prime fixe',
       dataIndex: 'prime_suivi_fixe',
-      render: (v: number) => v > 0 ? formatFCFA(v) : '—',
+      render: (v: number) => v > 0
+        ? <span style={{ color: '#555' }}>{formatFCFA(v)}</span>
+        : <span style={{ color: '#ccc' }}>—</span>,
     },
     {
-      title: 'Comm. quant.',
+      title: 'Prime quant.',
       dataIndex: 'prime_quantitative',
-      render: (v: number) => formatFCFA(v),
+      render: (v: number) => v > 0
+        ? <span style={{ color: '#1B5E20', fontWeight: 600 }}>{formatFCFA(v)}</span>
+        : <span style={{ color: '#ccc' }}>0 F</span>,
+      sorter: (a: Bonus, b: Bonus) => (a.prime_quantitative || 0) - (b.prime_quantitative || 0),
     },
     {
-      title: 'Comm. qual.',
+      title: 'Prime qual.',
       dataIndex: 'prime_qualitative',
-      render: (v: number) => (
-        <span style={{ color: v > 0 ? '#52c41a' : '#aaa' }}>{formatFCFA(v)}</span>
-      ),
+      render: (v: number) => v > 0
+        ? <span style={{ color: '#52c41a', fontWeight: 600 }}>{formatFCFA(v)}</span>
+        : <span style={{ color: '#ccc' }}>0 F</span>,
+      sorter: (a: Bonus, b: Bonus) => (a.prime_qualitative || 0) - (b.prime_qualitative || 0),
     },
     {
       title: 'TOTAL',
       dataIndex: 'total',
-      render: (v: number) => <strong>{formatFCFA(v)}</strong>,
+      render: (v: number) => <strong style={{ color: '#1890ff' }}>{formatFCFA(v)}</strong>,
       sorter: (a: Bonus, b: Bonus) => a.total - b.total,
     },
     {
@@ -200,19 +216,24 @@ export default function Bonuses() {
     },
   ]
 
-  const bonusesFiltered = roleFilter
-    ? bonuses.filter(b => empById[b.employee_id]?.type_poste === roleFilter)
-    : bonuses
+  const bonusesFiltered = bonuses
+    .filter(b => roleFilter ? empById[b.employee_id]?.type_poste === roleFilter : true)
+    .filter(b => hideZeros ? b.total > 0 : true)
 
-  const total = bonusesFiltered.reduce((s, b) => s + b.total, 0)
+  const total         = bonusesFiltered.reduce((s, b) => s + b.total, 0)
+  const nbAvecObj     = bonusesFiltered.filter(b => (b.volume_objectif || 0) > 0).length
+  const nb100         = bonusesFiltered.filter(b => (b.taux_atteinte_global || 0) >= 100).length
+  const totalQual     = bonusesFiltered.reduce((s, b) => s + (b.prime_qualitative || 0), 0)
 
   return (
-    <div style={{ padding: 24, background: '#fff', borderRadius: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          Commissions — Total période : <span style={{ color: '#1890ff' }}>{formatFCFA(total)}</span>
+    <div style={{ padding: 24, background: '#f4f6f0', minHeight: '100%' }}>
+
+      {/* ── Barre d'actions ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <Title level={4} style={{ margin: 0, color: '#1B5E20' }}>
+          Commissions — {dayjs(periode).format('MMMM YYYY')}
         </Title>
-        <Space>
+        <Space wrap>
           <DatePicker
             picker="month"
             value={dayjs(periode)}
@@ -222,7 +243,7 @@ export default function Bonuses() {
           <Select
             allowClear
             placeholder="Tous les rôles"
-            style={{ width: 200 }}
+            style={{ width: 180 }}
             value={roleFilter}
             onChange={v => setRoleFilter(v ?? null)}
             options={[
@@ -235,22 +256,18 @@ export default function Bonuses() {
               { value: 'DV',           label: 'Directeur des Ventes' },
             ]}
           />
-          <Button
-            icon={<CalculatorOutlined />}
-            loading={calculating}
-            onClick={onCalculate}
-          >
-            Calculer commissions
+          <Space size={6}>
+            <Switch size="small" checked={hideZeros} onChange={setHideZeros} />
+            <span style={{ fontSize: 13, color: '#666' }}>Masquer les 0</span>
+          </Space>
+          <Button icon={<CalculatorOutlined />} loading={calculating} onClick={onCalculate} type="primary">
+            Calculer
           </Button>
-          <Button
-            icon={<CheckCircleOutlined />}
-            onClick={() => setValidateModal(true)}
-            disabled={bonuses.length === 0}
-          >
+          <Button icon={<CheckCircleOutlined />} onClick={() => setValidateModal(true)} disabled={bonuses.length === 0}>
             Valider
           </Button>
           <Button icon={<DownloadOutlined />} onClick={onExport} disabled={bonuses.length === 0}>
-            Export Excel
+            Excel
           </Button>
           <Button
             icon={<FilePdfOutlined />}
@@ -275,26 +292,80 @@ export default function Bonuses() {
         </Space>
       </div>
 
-      <Table
-        dataSource={bonusesFiltered}
-        columns={columns}
-        rowKey="id"
-        loading={loading}
-        size="small"
-        summary={() => (
-          <Table.Summary.Row>
-            <Table.Summary.Cell index={0} colSpan={9}>
-              <strong>Total général</strong>
-            </Table.Summary.Cell>
-            <Table.Summary.Cell index={9}>
-              <strong style={{ color: '#1890ff' }}>{formatFCFA(total)}</strong>
-            </Table.Summary.Cell>
-            <Table.Summary.Cell index={9} colSpan={2} />
-          </Table.Summary.Row>
-        )}
-      />
+      {/* ── Cartes de synthèse ── */}
+      <Row gutter={16} style={{ marginBottom: 20 }}>
+        <Col span={6}>
+          <Card bordered={false} style={{ borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title="Masse salariale"
+              value={total}
+              suffix="F"
+              formatter={v => new Intl.NumberFormat('fr-FR').format(Number(v))}
+              valueStyle={{ color: '#1890ff', fontWeight: 700 }}
+              prefix={<WalletOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card bordered={false} style={{ borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title="Commerciaux avec objectif"
+              value={nbAvecObj}
+              suffix={`/ ${bonusesFiltered.length}`}
+              valueStyle={{ color: '#555' }}
+              prefix={<TeamOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card bordered={false} style={{ borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title="Objectif atteint (≥ 100%)"
+              value={nb100}
+              suffix={`/ ${nbAvecObj}`}
+              valueStyle={{ color: '#1B5E20', fontWeight: 700 }}
+              prefix={<TrophyOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card bordered={false} style={{ borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title="Total primes qualitatives"
+              value={totalQual}
+              suffix="F"
+              formatter={v => new Intl.NumberFormat('fr-FR').format(Number(v))}
+              valueStyle={{ color: '#52c41a', fontWeight: 700 }}
+              prefix={<RiseOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      {/* Drawer détail */}
+      {/* ── Tableau ── */}
+      <div style={{ background: '#fff', borderRadius: 8, padding: '0 0 8px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <Table
+          dataSource={bonusesFiltered}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          size="small"
+          onRow={(record: Bonus) => rowBg(record.taux_atteinte_global, (record.volume_objectif || 0) > 0)}
+          summary={() => (
+            <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 600 }}>
+              <Table.Summary.Cell index={0} colSpan={9}>
+                Total général
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={9}>
+                <strong style={{ color: '#1890ff' }}>{formatFCFA(total)}</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={10} colSpan={2} />
+            </Table.Summary.Row>
+          )}
+        />
+      </div>
+
+      {/* ── Drawer détail ── */}
       <Drawer
         title="Détail de la commission"
         open={!!selected}
@@ -325,14 +396,16 @@ export default function Bonuses() {
                     {selected.taux_atteinte_autres.toFixed(1)}%
                   </Descriptions.Item>
                 )}
-                <Descriptions.Item label="Commission fixe">
+                <Descriptions.Item label="Prime fixe">
                   {formatFCFA(selected.prime_suivi_fixe)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Commission quantitative">
-                  {formatFCFA(selected.prime_quantitative)}
+                <Descriptions.Item label="Prime quantitative">
+                  <span style={{ color: selected.prime_quantitative > 0 ? '#1B5E20' : '#aaa', fontWeight: 600 }}>
+                    {formatFCFA(selected.prime_quantitative)}
+                  </span>
                 </Descriptions.Item>
-                <Descriptions.Item label="Commission qualitative">
-                  <span style={{ color: selected.prime_qualitative > 0 ? '#52c41a' : '#aaa' }}>
+                <Descriptions.Item label="Prime qualitative">
+                  <span style={{ color: selected.prime_qualitative > 0 ? '#52c41a' : '#aaa', fontWeight: 600 }}>
                     {formatFCFA(selected.prime_qualitative)}
                   </span>
                 </Descriptions.Item>
@@ -350,7 +423,7 @@ export default function Bonuses() {
                 </Descriptions.Item>
               </Descriptions>
 
-              <Divider>Critères commission qualitative</Divider>
+              <Divider>Critères prime qualitative</Divider>
               {selected.qual_details.map(c => (
                 <div
                   key={c.id}
