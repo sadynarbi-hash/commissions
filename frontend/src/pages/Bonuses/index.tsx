@@ -250,6 +250,7 @@ export default function Bonuses() {
             options={[
               { value: 'COMMERCIAL',   label: 'Commercial' },
               { value: 'RCR',          label: 'Resp. Commercial Régional' },
+              { value: 'RCE',          label: 'Resp. Commercial Export' },
               { value: 'SV',           label: 'Superviseur des Ventes' },
               { value: 'ATC_BV',       label: 'ATC Bétail & Volaille' },
               { value: 'ATC_FARINE',   label: 'ATC Farine' },
