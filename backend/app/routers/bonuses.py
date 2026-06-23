@@ -245,28 +245,28 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
         ).all()
         new_client_codes = {row.code_sap for row in new_clients_q}
 
-    ca_new_m1          = 0.0
-    ca_new_m1_recouvre = 0.0
+    ca_new_m          = 0.0
+    ca_new_m_recouvre = 0.0
     if new_client_codes:
         row = db.query(
             func.sum(ClientMonthlySale.montant_ca),
             func.sum(ClientMonthlySale.montant_recouvre),
         ).filter(
             ClientMonthlySale.employee_id.in_(source_ids),
-            ClientMonthlySale.periode == periode_m1,
+            ClientMonthlySale.periode == periode,   # M (mois courant)
             ClientMonthlySale.client_code.in_(new_client_codes),
             ClientMonthlySale.annee_n1 == False,
         ).one()
-        ca_new_m1          = float(row[0] or 0)
-        ca_new_m1_recouvre = float(row[1] or 0)
+        ca_new_m          = float(row[0] or 0)
+        ca_new_m_recouvre = float(row[1] or 0)
 
     taux_recouv_m1_f = mnt_recouv / mnt_facture_m1 if mnt_facture_m1 > 0 else 0.0
-    # Si montant_recouvre par client disponible, on l'utilise directement ;
-    # sinon fallback sur prorata taux global (données avant migration)
-    if ca_new_m1_recouvre > 0:
-        ca_nouvelles = ca_new_m1_recouvre
+    # CA nouveaux clients du mois M × taux recouvrement M-1
+    # (les clients achètent à crédit : on applique le taux de recouvrement du mois précédent)
+    if ca_new_m_recouvre > 0:
+        ca_nouvelles = ca_new_m_recouvre
     else:
-        ca_nouvelles = ca_new_m1 * taux_recouv_m1_f
+        ca_nouvelles = ca_new_m * taux_recouv_m1_f
 
     return dict(
         employee_id=employee.id,
