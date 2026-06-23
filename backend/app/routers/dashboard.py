@@ -8,7 +8,7 @@ from ..database import get_db
 from ..models.employee import Employee, Region, TypePoste
 from ..models.bonus import Bonus, BonusPeriod, StatutBonus
 from ..models.sales import SaleData
-from ..models.objective import Objective, Gamme
+from ..models.objective import Objective, Gamme, ClientMonthlySale
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -238,4 +238,50 @@ def get_ventes(
         },
         "tonnage_par_gamme": {k: round(v, 1) for k, v in tonnage_par_gamme.items()},
         "gammes": sorted(gammes_presentes),
+    }
+
+
+@router.get("/ventes/clients")
+def get_ventes_clients(
+    periode: str = Query(...),
+    employee_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Détail par client pour un commercial donné sur une période."""
+    rows = (
+        db.query(ClientMonthlySale)
+        .filter(
+            ClientMonthlySale.employee_id == employee_id,
+            ClientMonthlySale.periode == periode,
+            ClientMonthlySale.annee_n1 == False,
+        )
+        .order_by(ClientMonthlySale.montant_ca.desc())
+        .all()
+    )
+
+    data = [
+        {
+            "client_code":       r.client_code,
+            "client_nom":        r.client_nom or r.client_code,
+            "montant_ca":        round(float(r.montant_ca or 0), 0),
+            "montant_recouvre":  round(float(r.montant_recouvre or 0), 0),
+            "tx_recouvrement":   round(
+                float(r.montant_recouvre or 0) / float(r.montant_ca) * 100
+                if r.montant_ca else 0,
+                1,
+            ),
+        }
+        for r in rows
+    ]
+
+    total_ca  = sum(d["montant_ca"]       for d in data)
+    total_rec = sum(d["montant_recouvre"] for d in data)
+
+    return {
+        "clients": data,
+        "totaux": {
+            "montant_ca":       round(total_ca, 0),
+            "montant_recouvre": round(total_rec, 0),
+            "tx_recouvrement":  round(total_rec / total_ca * 100 if total_ca else 0, 1),
+        },
     }

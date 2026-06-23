@@ -129,3 +129,6 @@ export const getDashboard = (periode: string) =>
 
 export const getVentes = (params?: { periode?: string; region_id?: number; gamme?: string }) =>
   api.get('/ventes', { params }).then(r => r.data)
+
+export const getVentesClients = (params: { periode: string; employee_id: number }) =>
+  api.get('/ventes/clients', { params }).then(r => r.data)
