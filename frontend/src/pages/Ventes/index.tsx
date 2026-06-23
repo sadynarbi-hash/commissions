@@ -1,19 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
-import { DatePicker, Select, Typography, Tag, Drawer, Spin } from 'antd'
-import { EyeOutlined } from '@ant-design/icons'
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { DatePicker, Select, Typography, Tag, Drawer, Spin, Button } from 'antd'
+import { DownloadOutlined } from '@ant-design/icons'
+import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
 import { getVentes, getRegions, getVentesClients } from '../../api/client'
 
 const { Title } = Typography
 const { Option } = Select
 
-const GAMME_COLORS: Record<string, string> = {
-  BETAIL:  '#6A1B9A',
-  VOLAILLE:'#00695C',
-  FARINE:  '#E65100',
-  PATES:   '#1565C0',
-}
 
 const fmt    = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n))
 const fmtPct = (n: number) => `${n.toFixed(1)} %`
@@ -45,11 +39,6 @@ export default function Ventes() {
       .finally(() => setLoading(false))
   }, [periode, regionId, gamme])
 
-  const pieData = useMemo(() => {
-    if (!data?.tonnage_par_gamme) return []
-    return Object.entries(data.tonnage_par_gamme).map(([name, value]) => ({ name, value }))
-  }, [data])
-
   // Rows filtrés par commercial si sélectionné
   const allRows: any[] = data?.rows ?? []
   const rows = useMemo(
@@ -80,6 +69,31 @@ export default function Ventes() {
     getVentesClients({ periode, employee_id: row.employee_id })
       .then(setClientsData)
       .finally(() => setClientsLoading(false))
+  }
+
+  const exportExcel = () => {
+    if (!clientsData || !drawerRow) return
+    const nom: string = drawerRow.nom
+    const rows = clientsData.clients.map((c: any) => ({
+      'Code client':       c.client_code,
+      'Nom client':        c.client_nom,
+      'CA Livré (F)':      c.montant_ca,
+      'CA Recouvré (F)':   c.montant_recouvre,
+      'Nouvelle affaire':  c.is_nouvelle_affaire ? 'OUI' : '',
+    }))
+    // Ligne totaux
+    rows.push({
+      'Code client':       '',
+      'Nom client':        'TOTAL',
+      'CA Livré (F)':      clientsData.totaux.montant_ca,
+      'CA Recouvré (F)':   clientsData.totaux.montant_recouvre,
+      'Nouvelle affaire':  '',
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [{ wch: 14 }, { wch: 40 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Clients')
+    XLSX.writeFile(wb, `ventes_clients_${nom.replace(/\s+/g, '_')}_${periode}.xlsx`)
   }
 
   return (
@@ -119,30 +133,29 @@ export default function Ventes() {
         </Select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
+      <div>
 
         {/* ── Tableau ── */}
         <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f1f8e9' }}>
-                {['Commercial', 'Zone', 'Tonnage', 'Objectif', '% Obj.', 'CA Livré', 'CA Recouvré', 'Tx Recouvr.', ''].map(h => (
+                {['Commercial', 'Zone', 'Tonnage', 'Objectif', '% Obj.', 'CA Livré', 'CA Recouvré', 'Tx Recouvr.'].map(h => (
                   <th key={h} style={{
-                    padding: '10px 14px', textAlign: h === 'Commercial' || h === 'Zone' || h === '' ? 'left' : 'right',
+                    padding: '10px 14px', textAlign: h === 'Commercial' || h === 'Zone' ? 'left' : 'right',
                     fontSize: 11, fontWeight: 700, color: '#1B5E20',
                     letterSpacing: 0.5, textTransform: 'uppercase',
                     borderBottom: '1.5px solid #c8e6c9',
-                    width: h === '' ? 36 : undefined,
                   }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>Chargement…</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>Chargement…</td></tr>
               )}
               {!loading && rows.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>
                   Aucune vente — lancez la synchronisation SAP
                 </td></tr>
               )}
@@ -152,11 +165,12 @@ export default function Ventes() {
                 const isEven = i % 2 === 0
                 return (
                   <tr key={r.employee_id}
-                    style={{ background: isEven ? '#fff' : '#fafff8', borderBottom: '1px solid #e8f5e9' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f1f8e9')}
+                    onClick={() => openDrawer(r)}
+                    style={{ background: isEven ? '#fff' : '#fafff8', borderBottom: '1px solid #e8f5e9', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#e8f5e9')}
                     onMouseLeave={e => (e.currentTarget.style.background = isEven ? '#fff' : '#fafff8')}
                   >
-                    <td style={{ padding: '9px 14px', fontWeight: 600, fontSize: 13 }}>{r.nom}</td>
+                    <td style={{ padding: '9px 14px', fontWeight: 600, fontSize: 13, color: '#1B5E20' }}>{r.nom}</td>
                     <td style={{ padding: '9px 14px' }}>
                       <Tag style={{
                         fontSize: 10, fontWeight: 700, borderRadius: 3,
@@ -193,21 +207,6 @@ export default function Ventes() {
                       <span style={{ fontWeight: 700, fontSize: 13, color: TX_COLOR(tx) }}>
                         {fmtPct(tx)}
                       </span>
-                    </td>
-                    <td style={{ padding: '9px 8px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => openDrawer(r)}
-                        title="Détail clients"
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          color: '#1B5E20', fontSize: 15, padding: 2,
-                          opacity: 0.7, lineHeight: 1,
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
-                      >
-                        <EyeOutlined />
-                      </button>
                     </td>
                   </tr>
                 )
@@ -246,7 +245,6 @@ export default function Ventes() {
                         {fmtPct(totauxFiltres.tx_recouvrement)}
                       </span>
                     </td>
-                    <td />
                   </tr>
                 )
               })()}
@@ -254,61 +252,31 @@ export default function Ventes() {
           </table>
         </div>
 
-        {/* ── Camembert ── */}
-        <div style={{ background: '#fff', borderRadius: 10, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#1B5E20', letterSpacing: 0.5, marginBottom: 12, textAlign: 'center' }}>
-            TONNAGE PAR GAMME
-          </div>
-          {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90}
-                  label={(props: any) => `${((props.percent ?? 0) * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {pieData.map((entry: any) => (
-                    <Cell key={entry.name} fill={GAMME_COLORS[entry.name] ?? '#888'} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: any) => fmt(v)} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ textAlign: 'center', color: '#aaa', padding: 40 }}>Aucune donnée</div>
-          )}
-
-          {/* KPIs */}
-          {totauxFiltres && (
-            <div style={{ marginTop: 12, borderTop: '1px solid #e8f5e9', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[
-                { label: 'Total Tonnage',   value: fmt(totauxFiltres.tonnage) + ' T',     color: '#1B5E20' },
-                { label: 'CA Livré',        value: fmt(totauxFiltres.ca_facture) + ' F',  color: '#1565C0' },
-                { label: 'CA Recouvré',     value: fmt(totauxFiltres.ca_recouvre) + ' F', color: '#2E7D32' },
-                { label: 'Tx Recouvrement', value: fmtPct(totauxFiltres.tx_recouvrement), color: TX_COLOR(totauxFiltres.tx_recouvrement) },
-              ].map(k => (
-                <div key={k.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span style={{ color: '#888' }}>{k.label}</span>
-                  <span style={{ fontWeight: 700, color: k.color }}>{k.value}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* ── Drawer détail clients ── */}
       <Drawer
         title={
           drawerRow
-            ? <span style={{ color: '#1B5E20', fontWeight: 700 }}>
-                {drawerRow.nom} — {periode}
-              </span>
+            ? <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <span style={{ color: '#1B5E20', fontWeight: 700 }}>
+                  {drawerRow.nom} — {periode}
+                </span>
+                {clientsData && (
+                  <Button
+                    size="small" icon={<DownloadOutlined />}
+                    onClick={exportExcel}
+                    style={{ color: '#1B5E20', borderColor: '#1B5E20' }}
+                  >
+                    Excel
+                  </Button>
+                )}
+              </div>
             : null
         }
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={560}
+        width={580}
         styles={{ body: { padding: 0 } }}
       >
         {clientsLoading && (
@@ -331,9 +299,13 @@ export default function Ventes() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: k.color }}>{k.value}</span>
                 </div>
               ))}
-              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                 <span style={{ fontSize: 10, color: '#888', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>Clients</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#1B5E20' }}>{clientsData.clients.length}</span>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: 10, color: '#888', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>Nouv. affaires</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#E65100' }}>{clientsData.totaux.nb_nouvelles}</span>
               </div>
             </div>
 
@@ -341,11 +313,11 @@ export default function Ventes() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#fafafa' }}>
-                  {['Client', 'CA Livré', 'CA Recouvré', 'Tx'].map(h => (
+                  {['Client', 'CA Livré', 'CA Recouvré', 'Nouv.'].map(h => (
                     <th key={h} style={{
                       padding: '8px 16px', fontSize: 11, fontWeight: 700,
                       color: '#555', textTransform: 'uppercase', letterSpacing: 0.4,
-                      textAlign: h === 'Client' ? 'left' : 'right',
+                      textAlign: h === 'Client' ? 'left' : 'center',
                       borderBottom: '1px solid #e8f5e9',
                     }}>{h}</th>
                   ))}
@@ -375,10 +347,19 @@ export default function Ventes() {
                       <td style={{ padding: '8px 16px', textAlign: 'right', color: '#2E7D32', fontWeight: 600, fontSize: 12 }}>
                         {fmt(c.montant_recouvre)}
                       </td>
-                      <td style={{ padding: '8px 16px', textAlign: 'right' }}>
-                        <span style={{ fontWeight: 700, fontSize: 12, color: TX_COLOR(c.tx_recouvrement) }}>
-                          {fmtPct(c.tx_recouvrement)}
-                        </span>
+                      <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                        {c.is_nouvelle_affaire && (
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 8px', borderRadius: 10,
+                            fontSize: 10, fontWeight: 700,
+                            background: '#FFF3E0', color: '#E65100',
+                            border: '1px solid #FFCC80',
+                            letterSpacing: 0.3,
+                          }}>
+                            NOUVEAU
+                          </span>
+                        )}
                       </td>
                     </tr>
                   )

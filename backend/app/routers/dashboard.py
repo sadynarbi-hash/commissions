@@ -8,7 +8,7 @@ from ..database import get_db
 from ..models.employee import Employee, Region, TypePoste
 from ..models.bonus import Bonus, BonusPeriod, StatutBonus
 from ..models.sales import SaleData
-from ..models.objective import Objective, Gamme, ClientMonthlySale
+from ..models.objective import Objective, Gamme, ClientMonthlySale, Client
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -248,6 +248,19 @@ def get_ventes_clients(
     db: Session = Depends(get_db),
 ):
     """Détail par client pour un commercial donné sur une période."""
+    from datetime import date
+    from dateutil.relativedelta import relativedelta
+
+    # Calcul bornes nouvelles affaires : ouverture entre (M-1 - 12 mois) et fin M-1
+    annee, mois = int(periode[:4]), int(periode[5:7])
+    debut_m  = date(annee, mois, 1)
+    debut_m1 = debut_m - relativedelta(months=1)
+    date_limite_new = debut_m1 - relativedelta(months=12)
+
+    # Index date_ouverture par code_sap
+    clients_db = db.query(Client).all()
+    date_ouverture: dict[str, date | None] = {c.code_sap: c.date_ouverture for c in clients_db}
+
     rows = (
         db.query(ClientMonthlySale)
         .filter(
@@ -259,20 +272,17 @@ def get_ventes_clients(
         .all()
     )
 
-    data = [
-        {
-            "client_code":       r.client_code,
-            "client_nom":        r.client_nom or r.client_code,
-            "montant_ca":        round(float(r.montant_ca or 0), 0),
-            "montant_recouvre":  round(float(r.montant_recouvre or 0), 0),
-            "tx_recouvrement":   round(
-                float(r.montant_recouvre or 0) / float(r.montant_ca) * 100
-                if r.montant_ca else 0,
-                1,
-            ),
-        }
-        for r in rows
-    ]
+    data = []
+    for r in rows:
+        do = date_ouverture.get(r.client_code)
+        is_new = bool(do and date_limite_new <= do < debut_m)
+        data.append({
+            "client_code":          r.client_code,
+            "client_nom":           r.client_nom or r.client_code,
+            "montant_ca":           round(float(r.montant_ca or 0), 0),
+            "montant_recouvre":     round(float(r.montant_recouvre or 0), 0),
+            "is_nouvelle_affaire":  is_new,
+        })
 
     total_ca  = sum(d["montant_ca"]       for d in data)
     total_rec = sum(d["montant_recouvre"] for d in data)
@@ -283,5 +293,6 @@ def get_ventes_clients(
             "montant_ca":       round(total_ca, 0),
             "montant_recouvre": round(total_rec, 0),
             "tx_recouvrement":  round(total_rec / total_ca * 100 if total_ca else 0, 1),
+            "nb_nouvelles":     sum(1 for d in data if d["is_nouvelle_affaire"]),
         },
     }
