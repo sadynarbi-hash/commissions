@@ -254,8 +254,6 @@ export default function Bonuses() {
               { value: 'SV',           label: 'Superviseur des Ventes' },
               { value: 'ATC_BV',       label: 'ATC' },
               { value: 'RESP_TECH_FP', label: 'Resp. Technique Farine & Pâtes' },
-              { value: 'DCMT',         label: 'DCMT' },
-              { value: 'DV',           label: 'Directeur des Ventes' },
             ]}
           />
           <Space size={6}>
