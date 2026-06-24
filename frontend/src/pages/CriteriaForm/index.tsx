@@ -259,8 +259,7 @@ export default function CriteriaForm() {
               { value: 'COMMERCIAL',    label: 'Commercial' },
               { value: 'RCR',           label: 'RCR' },
               { value: 'SV',            label: 'Superviseur' },
-              { value: 'ATC_BV',        label: 'ATC Bétail & Volaille' },
-              { value: 'ATC_FARINE',    label: 'ATC Farine' },
+              { value: 'ATC_BV',        label: 'ATC' },
               { value: 'RESP_TECH_FP',  label: 'Resp. Tech. FP' },
             ]}
           />
