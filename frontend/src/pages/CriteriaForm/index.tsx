@@ -3,7 +3,7 @@ import {
   Table, DatePicker, Button, Checkbox, Input, Space,
   Typography, Tag, message, Spin, Select, Tooltip,
 } from 'antd'
-import { SaveOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { SaveOutlined, InfoCircleOutlined, LockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getEmployees, getManualCriteria, upsertManualCriteria } from '../../api/client'
 import type { Employee } from '../../types'
@@ -16,48 +16,86 @@ interface CriteriaDef {
   label: string
   tooltip: string
   roles: string[]
+  auto?: boolean  // critère calculé automatiquement (SAP / Salesforce) — affiché en lecture seule
 }
 
 const CRITERIA_DEFS: CriteriaDef[] = [
+  // ── Critères automatiques (info seulement) ────────────────────────────────
+  {
+    code: 'AUTO_RECOUVREMENT',
+    label: 'Recouvrement ≥ 90%',
+    tooltip: 'Calculé automatiquement depuis SAP (montant recouvré M-1 / CA M-1)',
+    roles: ['COMMERCIAL', 'RCR', 'SV', 'ATC_BV'],
+    auto: true,
+  },
+  {
+    code: 'AUTO_PORTEFEUILLE',
+    label: 'Ventes ≥ 70% portefeuille',
+    tooltip: 'Calculé automatiquement depuis Salesforce (clients ayant acheté / total portefeuille)',
+    roles: ['COMMERCIAL', 'RCR'],
+    auto: true,
+  },
+  {
+    code: 'AUTO_CLIENTS_CROISSANCE',
+    label: '≥ 70% clients iso/croissance N-1',
+    tooltip: 'Calculé automatiquement (clients avec volume ≥ N-1)',
+    roles: ['COMMERCIAL', 'RCR', 'SV', 'ATC_BV'],
+    auto: true,
+  },
+  {
+    code: 'AUTO_TOP10',
+    label: 'Top 10 clients en croissance N-1',
+    tooltip: 'Calculé automatiquement (volume top 10 clients vs N-1)',
+    roles: ['COMMERCIAL', 'RCR'],
+    auto: true,
+  },
+  {
+    code: 'AUTO_VISITES',
+    label: 'Visites journalières 100%',
+    tooltip: 'Calculé automatiquement depuis Salesforce',
+    roles: ['COMMERCIAL', 'SV', 'ATC_BV'],
+    auto: true,
+  },
+  // ── Critères manuels (à cocher chaque mois) ───────────────────────────────
   {
     code: 'PLANNING_AVANT_01',
-    label: 'Planning avant le 01',
-    tooltip: 'Planning + tournées envoyé avant le 1er du mois',
+    label: 'Planning avant le 01 ✎',
+    tooltip: 'Planning + tournées envoyé avant le 1er du mois — à cocher manuellement',
     roles: ['COMMERCIAL', 'SV', 'ATC_FARINE'],
   },
   {
     code: 'RAPPORTS_ENVOYES',
-    label: 'Rapports & CRM',
-    tooltip: '100 % rapports d\'activité + relevés prix/stock + CRM envoyés',
+    label: 'Rapports & CRM ✎',
+    tooltip: '100 % rapports activité + relevés prix/stock envoyés — à cocher manuellement',
     roles: ['COMMERCIAL', 'ATC_BV', 'ATC_FARINE'],
   },
   {
     code: 'PREVISION',
-    label: 'Prévis. ≥ 90 %',
-    tooltip: 'Fiabilité des prévisions ≥ 90 % (fallback si prévisions non saisies dans l\'app)',
+    label: 'Fiabilité prévisions ✎',
+    tooltip: 'Cocher si les prévisions du commercial ont été validées (fallback si non saisies dans l\'app)',
     roles: ['COMMERCIAL', 'RCR'],
   },
   {
     code: 'ACCOMPAGNEMENT',
-    label: 'Accompagnement',
+    label: 'Accompagnement ✎',
     tooltip: 'Accompagnement managérial mensuel formalisé (SV → chefs de secteur)',
     roles: ['SV'],
   },
   {
     code: 'RECLAMATIONS_OTIF',
-    label: 'Réclamations OTIF',
+    label: 'Réclamations OTIF ✎',
     tooltip: '100 % des réclamations clients traitées dans les délais',
     roles: ['SV', 'RESP_TECH_FP'],
   },
   {
     code: 'RAPPORT_TECHNIQUE',
-    label: 'Rpts techn. ≤ 05',
+    label: 'Rpts techn. ≤ 05 ✎',
     tooltip: 'Rapports techniques mensuels déposés avant le 5 du mois suivant',
     roles: ['RESP_TECH_FP'],
   },
   {
     code: 'RAPPORT_TOURS',
-    label: 'Rpt tours clients',
+    label: 'Rpt tours clients ✎',
     tooltip: 'Rapport des tours clients envoyé OTIF',
     roles: ['RESP_TECH_FP'],
   },
@@ -96,7 +134,7 @@ export default function CriteriaForm() {
       for (const emp of filtered) {
         state[emp.id] = {}
         for (const c of CRITERIA_DEFS) {
-          if (c.roles.includes(emp.type_poste)) {
+          if (!c.auto && c.roles.includes(emp.type_poste)) {
             state[emp.id][c.code] = false
           }
         }
@@ -203,17 +241,25 @@ export default function CriteriaForm() {
     ...visibleCriteria.map(c => ({
       title: (
         <Tooltip title={c.tooltip}>
-          <span style={{ fontSize: 11, cursor: 'help', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, cursor: 'help', whiteSpace: 'nowrap', color: c.auto ? '#aaa' : undefined }}>
+            {c.auto && <LockOutlined style={{ marginRight: 3, fontSize: 10 }} />}
             {c.label} <InfoCircleOutlined style={{ opacity: 0.4, fontSize: 10 }} />
           </span>
         </Tooltip>
       ),
       key: c.code,
-      width: 130,
+      width: 140,
       align: 'center' as const,
       render: (_: unknown, e: Employee) => {
         if (!c.roles.includes(e.type_poste)) {
           return <span style={{ color: '#ddd' }}>–</span>
+        }
+        if (c.auto) {
+          return (
+            <Tooltip title="Calculé automatiquement (SAP / Salesforce)">
+              <LockOutlined style={{ color: '#ccc', fontSize: 12 }} />
+            </Tooltip>
+          )
         }
         const checked = criteria[e.id]?.[c.code] ?? false
         const saved = savedCriteria[e.id]?.[c.code] ?? false
