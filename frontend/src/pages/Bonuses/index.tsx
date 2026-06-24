@@ -27,7 +27,7 @@ const STATUT_COLORS: Record<string, string> = {
   PAYE: 'green',
 }
 
-const formatFCFA = (v: number) => new Intl.NumberFormat('fr-FR').format(Math.round(v)) + ' F'
+const formatFCFA = (v: number) => new Intl.NumberFormat('fr-FR').format(Math.round(v))
 
 const rowBg = (taux?: number | null, hasObj?: boolean) => {
   if (!hasObj || taux == null) return {}
