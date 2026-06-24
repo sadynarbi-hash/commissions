@@ -45,6 +45,13 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
         source_ids = [e.id for e in collabs_all] or [employee.id]
         # Objectif : seulement les actifs (un inactif n'a plus d'objectif à atteindre)
         source_ids_obj = [e.id for e in collabs_all if e.actif] or source_ids
+    elif employee.type_poste == _TP.RESP_TECH_FP:
+        # RESP_TECH_FP : objectif national FARINE + PÂTES — agrège tous les commerciaux/ATC
+        fp_emps = db.query(Employee).filter(
+            Employee.type_poste.in_((_TP.COMMERCIAL, _TP.ATC_FARINE)),
+        ).all()
+        source_ids     = [e.id for e in fp_emps] or [employee.id]
+        source_ids_obj = [e.id for e in fp_emps if e.actif] or source_ids
     else:
         source_ids = [employee.id]
         source_ids_obj = [employee.id]
@@ -268,12 +275,22 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
     else:
         ca_nouvelles = ca_new_m * taux_recouv_m1_f
 
+    # RESP_TECH_FP : taux calculé sur FARINE + PÂTES uniquement (scope national)
+    if employee.type_poste == _TP.RESP_TECH_FP:
+        vol_fp        = sum(float(s.volume) for s in sales if s.gamme in (Gamme.FARINE, Gamme.PATES))
+        obj_fp        = obj_pates + obj_farine
+        _vol_realise  = vol_fp
+        _vol_objectif = obj_fp
+    else:
+        _vol_realise  = vol_total
+        _vol_objectif = obj_all or (obj_bvf + obj_pates + obj_farine)
+
     return dict(
         employee_id=employee.id,
         type_poste=employee.type_poste,
         periode=periode,
-        volume_realise=vol_total,
-        volume_objectif=obj_all or (obj_bvf + obj_pates + obj_farine),
+        volume_realise=_vol_realise,
+        volume_objectif=_vol_objectif,
         volume_pates_realise=vol_pates,
         volume_pates_objectif=obj_pates,
         volume_autres_realise=vol_autres,
