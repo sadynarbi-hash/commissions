@@ -34,20 +34,8 @@ const CRITERIA_DEFS: CriteriaDef[] = [
   {
     code: 'PREVISION',
     label: 'Prévis. ≥ 90 %',
-    tooltip: 'Fiabilité des prévisions ≥ 90 % (calcul ou appréciation manuelle)',
+    tooltip: 'Fiabilité des prévisions ≥ 90 % (fallback si prévisions non saisies dans l\'app)',
     roles: ['COMMERCIAL', 'RCR'],
-  },
-  {
-    code: 'VISITES_JOURNALIERES',
-    label: 'Visites jour. 100 %',
-    tooltip: '100 % de l\'objectif visites journalières atteint (15 ou 20/j)',
-    roles: ['COMMERCIAL', 'ATC_FARINE'],
-  },
-  {
-    code: 'CRM_CONFORMITE',
-    label: 'CRM 100 %',
-    tooltip: '100 % des visites et commandes saisies dans le CRM',
-    roles: ['RCR', 'SV'],
   },
   {
     code: 'ACCOMPAGNEMENT',
@@ -60,24 +48,6 @@ const CRITERIA_DEFS: CriteriaDef[] = [
     label: 'Réclamations OTIF',
     tooltip: '100 % des réclamations clients traitées dans les délais',
     roles: ['SV', 'RESP_TECH_FP'],
-  },
-  {
-    code: 'KPIS_FERME',
-    label: 'KPIs ferme ≥ 95 %',
-    tooltip: 'Remontée journalière des KPIs ferme ≥ 95 %',
-    roles: ['ATC_BV'],
-  },
-  {
-    code: 'VISITES_FERMES',
-    label: 'Visites fermes 100 %',
-    tooltip: '100 % visites journalières (12/j, min 3 fermes) + planning transmis',
-    roles: ['ATC_BV'],
-  },
-  {
-    code: 'VISITES_CRM',
-    label: 'Visites + cmds CRM',
-    tooltip: '100 % des visites planifiées et commandes saisies CRM',
-    roles: ['RESP_TECH_FP'],
   },
   {
     code: 'RAPPORT_TECHNIQUE',
@@ -325,7 +295,7 @@ export default function CriteriaForm() {
       </Spin>
 
       <div style={{ marginTop: 12, fontSize: 12, color: '#aaa' }}>
-        Les critères cochés ici servent de fallback quand les données Salesforce / prévisions ne sont pas disponibles.
+        Visites & CRM sont calculés automatiquement depuis Salesforce. Seuls les critères ci-dessus nécessitent une saisie manuelle chaque mois.
       </div>
     </div>
   )
