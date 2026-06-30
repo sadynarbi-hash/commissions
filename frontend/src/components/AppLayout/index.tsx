@@ -80,25 +80,23 @@ export default function AppLayout({ children }: Props) {
           />
         </div>
 
-        <Menu
-          mode="inline"
-          selectedKeys={[pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-          style={{ marginTop: 8, background: 'transparent', borderRight: 'none' }}
-          theme="dark"
-        />
-
-        <div style={{
-          position: 'absolute',
-          bottom: 16,
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          color: 'rgba(249,168,37,0.5)',
-          fontSize: 11,
-        }}>
-          © NMA 2026
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)' }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[pathname]}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+            style={{ marginTop: 8, background: 'transparent', borderRight: 'none', flex: 1 }}
+            theme="dark"
+          />
+          <div style={{
+            textAlign: 'center',
+            color: 'rgba(249,168,37,0.5)',
+            fontSize: 11,
+            paddingBottom: 16,
+          }}>
+            © NMA 2026
+          </div>
         </div>
       </Sider>
 
