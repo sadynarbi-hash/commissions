@@ -93,7 +93,7 @@ export default function AppLayout({ children }: Props) {
             textAlign: 'center',
             color: 'rgba(249,168,37,0.5)',
             fontSize: 11,
-            paddingBottom: 16,
+            paddingBottom: 80,
           }}>
             © NMA 2026
           </div>
