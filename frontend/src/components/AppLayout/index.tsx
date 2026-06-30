@@ -88,6 +88,18 @@ export default function AppLayout({ children }: Props) {
           style={{ marginTop: 8, background: 'transparent', borderRight: 'none' }}
           theme="dark"
         />
+
+        <div style={{
+          position: 'absolute',
+          bottom: 16,
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          color: 'rgba(249,168,37,0.5)',
+          fontSize: 11,
+        }}>
+          © NMA 2026
+        </div>
       </Sider>
 
       <Layout style={{ marginLeft: 200 }}>
