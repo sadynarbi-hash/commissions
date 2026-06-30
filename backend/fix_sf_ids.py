@@ -1,9 +1,10 @@
-"""Corrige les sf_id Salesforce incorrects détectés en juin 2026."""
+"""Corrige les sf_id Salesforce incorrects et réattribue tout l'historique des visites."""
 import sys
 sys.path.insert(0, '.')
 
 from app.database import SessionLocal
 from app.models.employee import Employee
+from app.routers.sync import reattribute_visits
 
 CORRECTIONS = [
     # (prenom, nom, sf_id_correct)
@@ -26,6 +27,10 @@ try:
         else:
             print(f"INTROUVABLE: {prenom} {nom}")
     db.commit()
+
+    print("Réattribution des visites...")
+    result = reattribute_visits(db)
+    print(f"  {result['updated']} visite(s) réattribuée(s)")
     print("OK")
 finally:
     db.close()

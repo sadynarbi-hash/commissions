@@ -17,6 +17,7 @@ class VisitData(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     sf_id: Mapped[str] = mapped_column(String(50), unique=True)
+    sf_owner_id: Mapped[Optional[str]] = mapped_column(String(50), index=True)
     employee_id: Mapped[Optional[int]] = mapped_column(ForeignKey("employees.id"))
     client_code: Mapped[Optional[str]] = mapped_column(String(50))
     client_nom: Mapped[Optional[str]] = mapped_column(String(200))

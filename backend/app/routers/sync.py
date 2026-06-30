@@ -93,6 +93,7 @@ def _sync_sf_task(periode: str, db: Session):
 
             visit = VisitData(
                 sf_id=sf_id,
+                sf_owner_id=owner_id,
                 employee_id=sf_to_id.get(owner_id),
                 client_code=client_code,
                 client_nom=client_nom,
@@ -119,6 +120,37 @@ def _sync_sf_task(periode: str, db: Session):
         raise
 
 
+def reattribute_visits(db: Session) -> dict:
+    """Réattribue toutes les visites selon les sf_id actuels des employés.
+    À appeler après toute correction de sf_id — pas besoin de re-syncer Salesforce.
+    """
+    from ..models.employee import Employee
+    emps = db.query(Employee).filter(Employee.sf_id != None).all()
+    sf_to_id = {e.sf_id: e.id for e in emps}
+
+    updated = 0
+    for sf_owner_id, emp_id in sf_to_id.items():
+        result = db.execute(
+            __import__('sqlalchemy').text(
+                "UPDATE visits_data SET employee_id = :emp_id "
+                "WHERE sf_owner_id = :sf_owner_id AND employee_id IS DISTINCT FROM :emp_id"
+            ),
+            {"emp_id": emp_id, "sf_owner_id": sf_owner_id},
+        )
+        updated += result.rowcount
+
+    # Remettre à None les visites dont l'OwnerId n'est plus connu
+    result = db.execute(
+        __import__('sqlalchemy').text(
+            "UPDATE visits_data SET employee_id = NULL "
+            "WHERE sf_owner_id IS NOT NULL AND sf_owner_id NOT IN :known_ids AND employee_id IS NOT NULL"
+        ),
+        {"known_ids": tuple(sf_to_id.keys()) or ("",)},
+    )
+    db.commit()
+    return {"updated": updated, "unlinked": result.rowcount}
+
+
 @router.post("/sync")
 def trigger_sync(body: SyncRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     if body.source == SyncSourceType.SAP:
@@ -137,6 +169,13 @@ def list_sync_logs(
     if source:
         q = q.filter(SyncLog.source == source)
     return q.order_by(SyncLog.started_at.desc()).limit(100).all()
+
+
+@router.post("/sync/reattribute-visits")
+def trigger_reattribute(db: Session = Depends(get_db)):
+    """Réattribue toutes les visites selon les sf_id actuels — à appeler après fix sf_id."""
+    result = reattribute_visits(db)
+    return {"detail": f"{result['updated']} visite(s) réattribuée(s), {result['unlinked']} délié(s)"}
 
 
 @router.post("/sync/geography")
