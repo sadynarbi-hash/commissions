@@ -61,7 +61,7 @@ export default function Login() {
       {/* Panneau droit — formulaire sur fond vert */}
       <div style={{
         width: 420,
-        background: 'linear-gradient(160deg, #0A2A0D 0%, #0D3B12 50%, #1B5E20 100%)',
+        background: 'linear-gradient(160deg, #1B6B2E 0%, #207832 50%, #278039 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
