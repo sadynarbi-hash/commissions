@@ -33,7 +33,7 @@ export default function Login() {
       {/* Panneau gauche — visuel produit sur fond blanc */}
       <div style={{
         flex: 1,
-        background: '#ffffff',
+        background: '#f4f6f0',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -47,7 +47,6 @@ export default function Login() {
             maxHeight: 460,
             maxWidth: '80%',
             objectFit: 'contain',
-            filter: 'drop-shadow(0 16px 32px rgba(0,0,0,0.15))',
           }}
           onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
