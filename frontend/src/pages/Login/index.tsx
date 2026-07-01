@@ -69,13 +69,9 @@ export default function Login() {
         padding: '48px 40px',
       }}>
         <div style={{ width: '100%', maxWidth: 340 }}>
-          <img
-            src="/logo-nma.png"
-            alt="NMA"
-            style={{ height: 48, objectFit: 'contain', marginBottom: 28, display: 'block' }}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-          />
-
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+            Système de Commissionnement
+          </Text>
           <Title level={3} style={{ margin: '0 0 6px', color: '#F9A825' }}>
             Connexion
           </Title>
