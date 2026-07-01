@@ -33,7 +33,7 @@ export default function Login() {
       {/* Panneau gauche — visuel produit sur fond blanc */}
       <div style={{
         flex: 1,
-        background: '#f4f6f0',
+        background: '#ffffff',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
