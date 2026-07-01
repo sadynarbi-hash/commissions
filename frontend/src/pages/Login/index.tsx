@@ -56,20 +56,13 @@ export default function Login() {
         }} />
 
         <img
-          src="/logo-nma.png"
-          alt="NMA"
-          style={{ height: 60, objectFit: 'contain', marginBottom: 40 }}
-          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-        />
-
-        <img
           src="/product-sac.png"
           alt="Produit NMA"
           style={{
-            maxHeight: 380,
+            maxHeight: 420,
             maxWidth: '100%',
             objectFit: 'contain',
-            filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))',
+            mixBlendMode: 'multiply',
             zIndex: 1,
           }}
           onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -88,7 +81,7 @@ export default function Login() {
       {/* Panneau droit — formulaire */}
       <div style={{
         width: 420,
-        background: '#fff',
+        background: '#f4f6f0',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
