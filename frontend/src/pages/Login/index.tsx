@@ -30,58 +30,39 @@ export default function Login() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
 
-      {/* Panneau gauche — visuel produit */}
+      {/* Panneau gauche — visuel produit sur fond blanc */}
       <div style={{
         flex: 1,
-        background: 'linear-gradient(160deg, #0A2A0D 0%, #0D3B12 50%, #1B5E20 100%)',
+        background: '#ffffff',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '48px 32px',
-        position: 'relative',
-        overflow: 'hidden',
       }}>
-        {/* Cercle décoratif */}
-        <div style={{
-          position: 'absolute',
-          width: 500,
-          height: 500,
-          borderRadius: '50%',
-          background: 'rgba(249,168,37,0.05)',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          pointerEvents: 'none',
-        }} />
-
         <img
           src="/product-sac.png"
           alt="Produit NMA"
           style={{
-            maxHeight: 420,
-            maxWidth: '100%',
+            maxHeight: 460,
+            maxWidth: '80%',
             objectFit: 'contain',
-            mixBlendMode: 'multiply',
-            zIndex: 1,
+            filter: 'drop-shadow(0 16px 32px rgba(0,0,0,0.15))',
           }}
           onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
-
-        <div style={{ marginTop: 32, textAlign: 'center', zIndex: 1 }}>
-          <Text style={{ color: '#F9A825', fontSize: 18, fontWeight: 700, display: 'block' }}>
-            Nouvelle Minoterie Africaine
-          </Text>
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 6, display: 'block' }}>
-            Gestion des Commissions Commerciales 2026
-          </Text>
-        </div>
+        <Text style={{ color: '#1B5E20', fontSize: 15, fontWeight: 600, marginTop: 24, display: 'block' }}>
+          Nouvelle Minoterie Africaine
+        </Text>
+        <Text style={{ color: '#888', fontSize: 12, marginTop: 4, display: 'block' }}>
+          Gestion des Commissions Commerciales 2026
+        </Text>
       </div>
 
-      {/* Panneau droit — formulaire */}
+      {/* Panneau droit — formulaire sur fond vert */}
       <div style={{
         width: 420,
-        background: '#f4f6f0',
+        background: 'linear-gradient(160deg, #0A2A0D 0%, #0D3B12 50%, #1B5E20 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -89,10 +70,17 @@ export default function Login() {
         padding: '48px 40px',
       }}>
         <div style={{ width: '100%', maxWidth: 340 }}>
-          <Title level={3} style={{ margin: '0 0 6px', color: '#1B5E20' }}>
+          <img
+            src="/logo-nma.png"
+            alt="NMA"
+            style={{ height: 48, objectFit: 'contain', marginBottom: 28, display: 'block' }}
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+
+          <Title level={3} style={{ margin: '0 0 6px', color: '#F9A825' }}>
             Connexion
           </Title>
-          <Text style={{ color: '#888', fontSize: 13, display: 'block', marginBottom: 32 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, display: 'block', marginBottom: 32 }}>
             Bienvenue — connectez-vous pour continuer
           </Text>
 
@@ -113,19 +101,20 @@ export default function Login() {
           >
             <Form.Item
               name="email"
-              label={<span style={{ color: '#444', fontWeight: 600 }}>Email</span>}
+              label={<span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>Email</span>}
               rules={[{ required: true, message: 'Email requis' }, { type: 'email', message: 'Email invalide' }]}
             >
               <Input
                 prefix={<MailOutlined style={{ color: '#bbb' }} />}
                 placeholder="votre@email.com"
                 autoComplete="email"
+                style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}
               />
             </Form.Item>
 
             <Form.Item
               name="password"
-              label={<span style={{ color: '#444', fontWeight: 600 }}>Mot de passe</span>}
+              label={<span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>Mot de passe</span>}
               rules={[{ required: true, message: 'Mot de passe requis' }]}
               style={{ marginBottom: 28 }}
             >
@@ -133,6 +122,7 @@ export default function Login() {
                 prefix={<LockOutlined style={{ color: '#bbb' }} />}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}
               />
             </Form.Item>
 
@@ -143,11 +133,12 @@ export default function Login() {
                 loading={loading}
                 block
                 style={{
-                  background: 'linear-gradient(90deg, #1B5E20, #2E7D32)',
+                  background: '#F9A825',
                   borderColor: 'transparent',
+                  color: '#0D3B12',
                   height: 46,
                   fontSize: 15,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   borderRadius: 8,
                 }}
               >
@@ -156,7 +147,7 @@ export default function Login() {
             </Form.Item>
           </Form>
 
-          <Text style={{ color: '#ccc', fontSize: 11, display: 'block', textAlign: 'center', marginTop: 40 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, display: 'block', textAlign: 'center', marginTop: 40 }}>
             © NMA 2026
           </Text>
         </div>
