@@ -65,15 +65,13 @@ export default function Login() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         padding: '48px 40px',
       }}>
-        {/* Titre en haut */}
-        <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 700, letterSpacing: 1, textAlign: 'center', display: 'block' }}>
-          Système de Commissionnement
-        </Text>
-
         <div style={{ width: '100%', maxWidth: 340 }}>
+          <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 28 }}>
+            Système de Commissionnement
+          </Text>
           <Title level={3} style={{ margin: '0 0 6px', color: '#F9A825' }}>
             Connexion
           </Title>
