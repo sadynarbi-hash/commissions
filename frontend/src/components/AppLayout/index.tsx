@@ -58,7 +58,7 @@ export default function AppLayout({ children }: Props) {
         theme="dark"
         style={{
           position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 100,
-          background: NMA_SIDER,
+          background: `linear-gradient(180deg, #0A2A0D 0%, #0D3B12 40%, #1B5E20 100%)`,
         }}
       >
         {/* Logo NMA */}
@@ -106,11 +106,12 @@ export default function AppLayout({ children }: Props) {
 
       <Layout style={{ marginLeft: 200 }}>
         <Header style={{
-          background: NMA_GREEN,
+          background: `linear-gradient(90deg, #1B5E20 0%, #2E7D32 100%)`,
           padding: '0 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          borderBottom: `2px solid rgba(249,168,37,0.4)`,
         }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
             Gestion des Commissions Commerciales
