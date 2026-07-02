@@ -169,9 +169,10 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
     COL_TX_TOT   = 15
     COL_CA       = 16
     COL_PRIME_FX = 17
-    COL_TOT_QANT = 18  # Total Quanti ← résultat clé
+    COL_COMM_NA  = 18  # Commission nouvelles affaires
+    COL_TOT_QANT = 19  # Total Quanti ← résultat clé
     # Qualitatif
-    COL_CRIT_START = 19
+    COL_CRIT_START = 20
     COL_CRIT_END   = COL_CRIT_START + len(CRITERIA_MAP) - 1
     COL_TOT_QUAL   = COL_CRIT_END + 1
     COL_TOTAL      = COL_TOT_QUAL + 1
@@ -194,7 +195,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         c.alignment = _center()
 
     section_header(2, COL_NOM, COL_ZONE,     "IDENTIFICATION",           C_VERT_MID)
-    section_header(2, COL_OBJ_FAR, COL_PRIME_FX, "PRIME QUANTITATIVE — DÉTAIL PAR GAMME", C_ORANGE)
+    section_header(2, COL_OBJ_FAR, COL_COMM_NA, "PRIME QUANTITATIVE — DÉTAIL PAR GAMME", C_ORANGE)
     section_header(2, COL_TOT_QANT, COL_TOT_QANT, "TOTAL\nQUANTI",       C_ORANGE)
     section_header(2, COL_CRIT_START, COL_CRIT_END, "PRIME QUALITATIVE — CRITÈRES DÉTAILLÉS", "1565C0")
     section_header(2, COL_TOT_QUAL, COL_TOT_QUAL, "TOTAL\nQUALI",        "1565C0")
@@ -220,6 +221,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         (COL_TX_TOT,   "Taux\nTotal %"),
         (COL_CA,       "CA Base\n(FCFA)"),
         (COL_PRIME_FX, "Prime\nFixe"),
+        (COL_COMM_NA,  "Commission\nNA (0.5%)"),
         (COL_TOT_QANT, "TOTAL\nQUANTI"),
     ]
     for code, label in CRITERIA_MAP:
@@ -338,9 +340,13 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         taux_tot = float(bonus.taux_atteinte_global) if bonus.taux_atteinte_global else gtaux(vol_tot, obj_tot)
         write_taux(COL_TX_TOT, taux_tot)
 
-        # CA + prime fixe
+        # CA + prime fixe + commission nouvelles affaires
         write(COL_CA, ca_by_emp.get(emp.id, 0) or None, _fcfa_fmt())
         write(COL_PRIME_FX, float(bonus.prime_suivi_fixe) or None, _fcfa_fmt())
+        comm = float(bonus.commission_nouvelles_affaires)
+        c_comm = write(COL_COMM_NA, comm or None, _fcfa_fmt())
+        if comm > 0:
+            c_comm.fill = _fill("FFF9C4")  # jaune si commission non nulle
 
         # Total Quanti — mis en valeur
         c_qant = write(COL_TOT_QANT, float(bonus.prime_quantitative), _fcfa_fmt(), bold=True)
@@ -378,7 +384,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
     c.fill = _fill(C_VERT_FONCE)
     c.alignment = _center()
 
-    for col in [COL_TOT_QANT, COL_TOT_QUAL, COL_TOTAL]:
+    for col in [COL_COMM_NA, COL_TOT_QANT, COL_TOT_QUAL, COL_TOTAL]:
         col_letter = get_column_letter(col)
         c = ws.cell(row, col, f"=SUM({col_letter}4:{col_letter}{row-1})")
         c.font = Font(bold=True, size=10, color=C_BLANC)
@@ -405,7 +411,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         COL_OBJ_PAT: 9, COL_REA_PAT: 9, COL_TX_PAT: 8,
         COL_OBJ_BVF: 9, COL_REA_BVF: 9, COL_TX_BVF: 8,
         COL_OBJ_TOT: 9, COL_REA_TOT: 9, COL_TX_TOT: 8,
-        COL_CA: 14, COL_PRIME_FX: 11, COL_TOT_QANT: 13,
+        COL_CA: 14, COL_PRIME_FX: 11, COL_COMM_NA: 13, COL_TOT_QANT: 13,
         COL_TOT_QUAL: 12, COL_TOTAL: 14,
     }
     for col in range(COL_CRIT_START, COL_CRIT_END + 1):
