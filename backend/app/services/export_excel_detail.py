@@ -348,8 +348,9 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         if comm > 0:
             c_comm.fill = _fill("FFF9C4")  # jaune si commission non nulle
 
-        # Total Quanti — mis en valeur
-        c_qant = write(COL_TOT_QANT, float(bonus.prime_quantitative), _fcfa_fmt(), bold=True)
+        # Total Quanti — prime quantitative + commission nouvelles affaires
+        tot_qant = float(bonus.prime_quantitative) + comm
+        c_qant = write(COL_TOT_QANT, tot_qant, _fcfa_fmt(), bold=True)
         c_qant.fill = _fill("FFE0B2")  # orange clair
 
         # Critères qualitatifs
