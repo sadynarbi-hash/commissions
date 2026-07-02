@@ -107,6 +107,9 @@ export const upsertManualCriteria = (data: object) =>
 export const exportBonuses = (periode: string) =>
   api.get(`/bonuses/export/${periode}`, { responseType: 'blob' })
 
+export const exportBonusesDetail = (periode: string) =>
+  api.get(`/bonuses/export-detail/${periode}`, { responseType: 'blob' })
+
 export const downloadPV = (bonusId: number) =>
   api.get(`/bonuses/${bonusId}/pv`, { responseType: 'blob' })
 

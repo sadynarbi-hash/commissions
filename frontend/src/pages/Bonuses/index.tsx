@@ -12,7 +12,7 @@ import {
 import dayjs from 'dayjs'
 import {
   getBonuses, calculateBonuses, validateBonuses,
-  getEmployees, exportBonuses, downloadPV, downloadRecap,
+  getEmployees, exportBonuses, exportBonusesDetail, downloadPV, downloadRecap,
 } from '../../api/client'
 import type { Bonus, Employee } from '../../types'
 import { TYPE_POSTE_LABELS } from '../../types'
@@ -91,6 +91,16 @@ export default function Bonuses() {
     const a = document.createElement('a')
     a.href = url
     a.download = `primes_${periode}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const onExportDetail = async () => {
+    const resp = await exportBonusesDetail(periode)
+    const url = URL.createObjectURL(resp.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `primes_detail_${periode}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -268,6 +278,14 @@ export default function Bonuses() {
           </Button>
           <Button icon={<DownloadOutlined />} onClick={onExport} disabled={bonuses.length === 0}>
             Excel
+          </Button>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={onExportDetail}
+            disabled={bonuses.length === 0}
+            style={{ borderColor: '#E65100', color: '#E65100' }}
+          >
+            Rapport détaillé
           </Button>
           <Button
             icon={<FilePdfOutlined />}

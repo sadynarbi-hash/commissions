@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import io
@@ -529,6 +529,21 @@ def download_recap(periode: str, db: Session = Depends(get_db)):
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=\"recap_commissions_{periode}.pdf\""},
+    )
+
+
+@router.get("/bonuses/export-detail/{periode}")
+def export_bonuses_detail(periode: str, db: Session = Depends(get_db)):
+    """Export Excel détaillé : quanti par gamme + quali par critère, filtrable par rôle."""
+    from ..services.export_excel_detail import generate_detail_excel
+    try:
+        xlsx_bytes = generate_detail_excel(db, periode)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=primes_detail_{periode}.xlsx"},
     )
 
 
