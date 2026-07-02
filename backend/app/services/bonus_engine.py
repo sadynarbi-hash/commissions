@@ -1,7 +1,7 @@
 from __future__ import annotations
 """
 Moteur de calcul des primes NMA 2026.
-Chaque rôle a sa propre logique conforme au document SYSTEME DE PRIMES V11.
+Chaque rôle a sa propre logique conforme au document SYSTEME DE PRIMES V12.
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -81,6 +81,10 @@ PALIERS_ATC_BV = [(0.90, 150_000), (1.00, 250_000), (1.15, 350_000)]
 PALIERS_RESP_TECH_FP = [(0.90, 175_000), (1.00, 225_000), (1.15, 300_000)]
 PALIERS_SV_PATES = [(0.90, 90_000), (1.00, 175_000), (1.15, 210_000)]
 PALIERS_SV_AUTRES = [(0.90, 60_000), (1.00, 75_000), (1.15, 90_000)]
+
+# V12 — Commerciaux : prime quantitative en % du CA (montant facturé)
+TAUX_COMMERCIAL_BVF   = [(0.90, 0.0005), (1.00, 0.0010), (1.15, 0.0020)]  # 0,05% / 0,10% / 0,20%
+TAUX_COMMERCIAL_PATES = [(0.90, 0.0020), (1.00, 0.0035), (1.15, 0.0040)]  # 0,20% / 0,35% / 0,40%
 
 
 def _palier(taux: float, paliers: list[tuple]) -> float:
@@ -166,7 +170,8 @@ def calculate_bonus(
                          nb_clients_croissance, top_clients_volume, top_clients_volume_n1,
                          nb_visites_realisees, nb_visites_objectif, planning_envoye_avant_01,
                          taux_crm_commandes, taux_crm_visites, taux_rapport_activities,
-                         ca_nouvelles_affaires)
+                         ca_nouvelles_affaires,
+                         pates_commercial=(volume_pates_objectif > 0 and volume_pates_objectif > volume_autres_objectif))
 
     elif type_poste == TypePoste.ATC_BV:
         _calc_atc(result, volume_realise, volume_objectif, montant_facture, montant_recouvre,
@@ -291,13 +296,17 @@ def _calc_commercial(r: BonusResult, vol_real, vol_obj, mnt_fact, mnt_recouv,
                      prevision, real_prev, nb_portefeuille, nb_achat, nb_croissance,
                      top_vol, top_vol_n1, nb_visites_real, nb_visites_obj,
                      planning_avant_01, taux_crm_cmd, taux_crm_vis, taux_rapports,
-                     ca_nouvelles_affaires):
+                     ca_nouvelles_affaires, pates_commercial: bool = False):
     r.prime_suivi_fixe = 100_000
     r.commission_nouvelles_affaires = round(ca_nouvelles_affaires * 0.005, 2)
 
     taux = _taux(vol_real, vol_obj)
     r.taux_atteinte_global = round(taux * 100, 2)
-    r.prime_quantitative = _palier(taux, PALIERS_STANDARD)
+
+    # V12 : prime quantitative = % du CA facturé selon palier
+    paliers_taux = TAUX_COMMERCIAL_PATES if pates_commercial else TAUX_COMMERCIAL_BVF
+    taux_commission = _palier(taux, paliers_taux)
+    r.prime_quantitative = round(mnt_fact * taux_commission, 0)
 
     qualif = taux >= 0.90
     r.qualitative_eligible = qualif
