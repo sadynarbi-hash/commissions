@@ -295,8 +295,9 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
         volume_pates_objectif=obj_pates,
         volume_autres_realise=vol_autres,
         volume_autres_objectif=obj_bvf + obj_farine + obj_nutri,
-        montant_facture=mnt_facture_m1,   # M-1 : base de calcul du taux de recouvrement
-        montant_recouvre=mnt_recouv,      # M-1 : montant effectivement récupéré
+        montant_facture=mnt_facture_m1,    # M-1 : base recouvrement
+        montant_recouvre=mnt_recouv,       # M-1 : montant récupéré
+        montant_facture_m=mnt_facture,     # M   : base prime quantitative V12
         prevision=prevision,
         realise_pour_prevision=vol_total,
         nb_clients_portefeuille=nb_portefeuille,

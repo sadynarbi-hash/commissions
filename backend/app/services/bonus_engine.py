@@ -113,8 +113,9 @@ def calculate_bonus(
     volume_pates_objectif: float = 0,
     volume_autres_realise: float = 0,
     volume_autres_objectif: float = 0,
-    montant_facture: float = 0,
-    montant_recouvre: float = 0,
+    montant_facture: float = 0,    # CA M-1 (base recouvrement)
+    montant_recouvre: float = 0,   # montant récupéré M-1
+    montant_facture_m: float = 0,  # CA mois M (base prime quanti V12)
     # Données prévisions
     prevision: float = 0,
     realise_pour_prevision: float = 0,
@@ -164,8 +165,10 @@ def calculate_bonus(
                  taux_crm_commandes, taux_crm_visites, reclamations_traitees_otif)
 
     elif type_poste == TypePoste.COMMERCIAL:
-        _calc_commercial(result, volume_realise, volume_objectif, montant_facture,
-                         montant_recouvre, prevision, realise_pour_prevision,
+        _calc_commercial(result, volume_realise, volume_objectif,
+                         montant_facture_m or montant_facture,  # CA M pour prime quanti
+                         montant_facture, montant_recouvre,     # CA M-1 pour recouvrement
+                         prevision, realise_pour_prevision,
                          nb_clients_portefeuille, nb_clients_avec_achat,
                          nb_clients_croissance, top_clients_volume, top_clients_volume_n1,
                          nb_visites_realisees, nb_visites_objectif, planning_envoye_avant_01,
@@ -292,7 +295,10 @@ def _calc_sv(r: BonusResult, vol_pates_real, vol_pates_obj, vol_autres_real, vol
 # ──────────────────────────────────────────────────────────
 # COMMERCIAL
 # ──────────────────────────────────────────────────────────
-def _calc_commercial(r: BonusResult, vol_real, vol_obj, mnt_fact, mnt_recouv,
+def _calc_commercial(r: BonusResult, vol_real, vol_obj,
+                     mnt_fact_m,           # CA mois M → prime quantitative V12
+                     mnt_fact_m1,          # CA mois M-1 → base recouvrement
+                     mnt_recouv,
                      prevision, real_prev, nb_portefeuille, nb_achat, nb_croissance,
                      top_vol, top_vol_n1, nb_visites_real, nb_visites_obj,
                      planning_avant_01, taux_crm_cmd, taux_crm_vis, taux_rapports,
@@ -303,15 +309,15 @@ def _calc_commercial(r: BonusResult, vol_real, vol_obj, mnt_fact, mnt_recouv,
     taux = _taux(vol_real, vol_obj)
     r.taux_atteinte_global = round(taux * 100, 2)
 
-    # V12 : prime quantitative = % du CA facturé selon palier
+    # V12 : prime quantitative = % du CA mois M selon palier
     paliers_taux = TAUX_COMMERCIAL_PATES if pates_commercial else TAUX_COMMERCIAL_BVF
     taux_commission = _palier(taux, paliers_taux)
-    r.prime_quantitative = round(mnt_fact * taux_commission, 0)
+    r.prime_quantitative = round(mnt_fact_m * taux_commission, 0)
 
     qualif = taux >= 0.90
     r.qualitative_eligible = qualif
 
-    taux_recouv = _taux(mnt_recouv, mnt_fact) if mnt_fact > 0 else 0
+    taux_recouv = _taux(mnt_recouv, mnt_fact_m1) if mnt_fact_m1 > 0 else 0
     taux_prev = min(_taux(real_prev, prevision), _taux(prevision, real_prev)) if prevision > 0 else 0
     pct_achat = _taux(nb_achat, nb_portefeuille) if nb_portefeuille > 0 else 0
     pct_crois = _taux(nb_croissance, nb_portefeuille) if nb_portefeuille > 0 else 0
