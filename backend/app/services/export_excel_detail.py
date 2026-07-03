@@ -101,14 +101,14 @@ COL_TX_BVF   = 12
 COL_OBJ_TOT  = 13
 COL_REA_TOT  = 14
 COL_TX_TOT   = 15
-COL_CA       = 16
-COL_PRIME_FX = 17
-COL_COMM_NA  = 18
-COL_TOT_QANT = 19
-COL_CRIT_START = 20
+COL_CA         = 16
+COL_COMM_NA    = 17  # Commission nouvelles affaires
+COL_TOT_QANT   = 18  # Total Quanti (hors prime fixe)
+COL_CRIT_START = 19
 COL_CRIT_END   = COL_CRIT_START + len(CRITERIA_MAP) - 1
 COL_TOT_QUAL   = COL_CRIT_END + 1
-COL_TOTAL      = COL_TOT_QUAL + 1
+COL_PRIME_FX   = COL_TOT_QUAL + 1  # Prime fixe — colonne séparée après le qualitatif
+COL_TOTAL      = COL_PRIME_FX + 1
 TOTAL_COLS     = COL_TOTAL
 
 COL_WIDTHS = {
@@ -117,8 +117,8 @@ COL_WIDTHS = {
     COL_OBJ_PAT: 9, COL_REA_PAT: 9, COL_TX_PAT: 8,
     COL_OBJ_BVF: 9, COL_REA_BVF: 9, COL_TX_BVF: 8,
     COL_OBJ_TOT: 9, COL_REA_TOT: 9, COL_TX_TOT: 8,
-    COL_CA: 14, COL_PRIME_FX: 11, COL_COMM_NA: 13, COL_TOT_QANT: 13,
-    COL_TOT_QUAL: 12, COL_TOTAL: 14,
+    COL_CA: 14, COL_COMM_NA: 13, COL_TOT_QANT: 13,
+    COL_TOT_QUAL: 12, COL_PRIME_FX: 11, COL_TOTAL: 14,
 }
 
 
@@ -161,10 +161,10 @@ def _write_headers(ws, mois_label: str, periode: str):
     ws.row_dimensions[1].height = 28
 
     section_header(COL_NOM, COL_ZONE,      "IDENTIFICATION",                            C_VERT_MID)
-    section_header(COL_OBJ_FAR, COL_COMM_NA,"PRIME QUANTITATIVE — DÉTAIL PAR GAMME",   C_ORANGE)
-    section_header(COL_TOT_QANT, COL_TOT_QANT, "TOTAL\nQUANTI",                        C_ORANGE)
+    section_header(COL_OBJ_FAR, COL_TOT_QANT, "PRIME QUANTITATIVE — DÉTAIL PAR GAMME",  C_ORANGE)
     section_header(COL_CRIT_START, COL_CRIT_END, "PRIME QUALITATIVE — CRITÈRES DÉTAILLÉS", "1B5E20")
     section_header(COL_TOT_QUAL, COL_TOT_QUAL, "TOTAL\nQUALI",                          "1B5E20")
+    section_header(COL_PRIME_FX, COL_PRIME_FX, "PRIME\nFIXE",                          C_VERT_MID)
     section_header(COL_TOTAL, COL_TOTAL,    "TOTAL\nGLOBAL",                            C_VERT_FONCE)
     ws.row_dimensions[2].height = 30
 
@@ -185,7 +185,6 @@ def _write_headers(ws, mois_label: str, periode: str):
         (COL_REA_TOT,  "Réal.\nTotal (T)"),
         (COL_TX_TOT,   "Taux\nTotal %"),
         (COL_CA,       "CA Mois M\n(FCFA)"),
-        (COL_PRIME_FX, "Prime\nFixe"),
         (COL_COMM_NA,  "Commission\nNA (0.5%)"),
         (COL_TOT_QANT, "TOTAL\nQUANTI"),
     ]
@@ -193,6 +192,7 @@ def _write_headers(ws, mois_label: str, periode: str):
         col = COL_CRIT_START + CRITERIA_MAP.index((code, label))
         headers.append((col, label))
     headers.append((COL_TOT_QUAL, "TOTAL\nQUALI"))
+    headers.append((COL_PRIME_FX, "Prime\nFixe"))
     headers.append((COL_TOTAL,    "TOTAL\nGLOBAL"))
 
     for col, label in headers:
@@ -287,7 +287,6 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
     write_taux(COL_TX_TOT, taux_tot)
 
     write(COL_CA, ca_by_emp.get(emp.id if emp else -1, 0) or None, _fcfa_fmt())
-    write(COL_PRIME_FX, float(bonus.prime_suivi_fixe) or None, _fcfa_fmt())
     comm = float(bonus.commission_nouvelles_affaires)
     c_comm = write(COL_COMM_NA, comm or None, _fcfa_fmt())
     if comm > 0:
@@ -311,6 +310,11 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
     c_qual = write(COL_TOT_QUAL, float(bonus.prime_qualitative), _fcfa_fmt(), bold=True)
     c_qual.fill = _fill("BBDEFB")
 
+    prime_fixe = float(bonus.prime_suivi_fixe)
+    c_fx = write(COL_PRIME_FX, prime_fixe or None, _fcfa_fmt(), bold=True)
+    if prime_fixe > 0:
+        c_fx.fill = _fill("E8F5E9")
+
     total_val = float(bonus.total)
     c_tot = write(COL_TOTAL, total_val, _fcfa_fmt(), bold=True)
     c_tot.fill = _fill("A5D6A7") if total_val > 0 else _fill("F5F5F5")
@@ -333,7 +337,7 @@ def _write_drilldown_header(ws, row: int, region_name: str):
 
 def _write_totals_row(ws, row: int, main_rows: list[int]):
     """Ligne de totaux ne sommant que les lignes 'main_rows' (superviseurs)."""
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=COL_COMM_NA)
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=COL_CA)
     c = ws.cell(row, 1, "TOTAUX")
     c.font = Font(bold=True, size=10, color=C_BLANC)
     c.fill = _fill(C_VERT_FONCE)
@@ -344,7 +348,7 @@ def _write_totals_row(ws, row: int, main_rows: list[int]):
         parts = "+".join(f"{ltr}{r}" for r in main_rows)
         return f"={parts}" if parts else "=0"
 
-    for col in [COL_TOT_QANT, COL_TOT_QUAL, COL_TOTAL]:
+    for col in [COL_COMM_NA, COL_TOT_QANT, COL_TOT_QUAL, COL_PRIME_FX, COL_TOTAL]:
         c = ws.cell(row, col, sum_formula(col))
         c.font = Font(bold=True, size=10, color=C_BLANC)
         c.fill = _fill(C_VERT_FONCE)
