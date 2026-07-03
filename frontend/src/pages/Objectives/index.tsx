@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import {
   DatePicker, Button, Modal, Form, Select,
-  InputNumber, Typography, Space, message, Tag,
+  InputNumber, Typography, Space, message, Tag, Alert, Spin,
 } from 'antd'
-import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, EditOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getObjectives, upsertObjective, deleteObjective, getEmployees, getRegions } from '../../api/client'
+import api from '../../api/client'
 import type { Objective, Employee } from '../../types'
 import { TYPE_POSTE_LABELS } from '../../types'
 
@@ -41,6 +42,14 @@ export default function Objectives() {
   const [modalOpen, setModalOpen]     = useState(false)
   const [editing, setEditing]         = useState<Objective | null>(null)
   const [form] = Form.useForm()
+
+  const [importOpen, setImportOpen]   = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importFile, setImportFile]   = useState<File | null>(null)
+  const [importResult, setImportResult] = useState<{
+    created: number; updated: number; errors: {nom: string; raison: string}[]
+  } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = () => {
     setLoading(true)
@@ -94,6 +103,36 @@ export default function Objectives() {
     await deleteObjective(id); message.success('Supprimé'); load()
   }
 
+  const downloadTemplate = () => {
+    const a = document.createElement('a')
+    a.href = '/api/objectives/template'
+    a.download = 'objectifs_template.xlsx'
+    a.click()
+  }
+
+  const openImport = () => {
+    setImportFile(null)
+    setImportResult(null)
+    setImportOpen(true)
+  }
+
+  const onImport = async () => {
+    if (!importFile) return
+    setImportLoading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', importFile)
+      fd.append('periode', periode)
+      const res = await api.post('/objectives/import', fd)
+      setImportResult(res.data)
+      if (res.data.created + res.data.updated > 0) load()
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail ?? "Erreur lors de l'import")
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   const zoneName = regions.find(r => r.id === zoneFilter)?.nom
   const selectionLabel = [zoneName, GAMME_MAP[gammeFilter ?? '']?.label].filter(Boolean).join(' · ') || 'Tout'
 
@@ -127,7 +166,11 @@ export default function Objectives() {
             ))}
           </Select>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Ajouter</Button>
+        <Space>
+          <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>Modèle Excel</Button>
+          <Button icon={<UploadOutlined />} onClick={openImport}>Importer Excel</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>Ajouter</Button>
+        </Space>
       </div>
 
       {/* ── Cartes totaux ── */}
@@ -262,7 +305,93 @@ export default function Objectives() {
         </table>
       </div>
 
-      {/* ── Modal ── */}
+      {/* ── Modal Import Excel ── */}
+      <Modal
+        title="Importer des objectifs depuis Excel"
+        open={importOpen}
+        onCancel={() => { setImportOpen(false); setImportResult(null) }}
+        footer={importResult ? [
+          <Button key="close" onClick={() => { setImportOpen(false); setImportResult(null) }}>Fermer</Button>
+        ] : [
+          <Button key="cancel" onClick={() => setImportOpen(false)}>Annuler</Button>,
+          <Button key="import" type="primary" icon={<UploadOutlined />}
+            loading={importLoading} disabled={!importFile} onClick={onImport}>
+            Importer
+          </Button>
+        ]}
+      >
+        {!importResult ? (
+          <Spin spinning={importLoading}>
+            <div style={{ marginBottom: 12, color: '#555', fontSize: 13 }}>
+              Période ciblée : <strong>{dayjs(periode).format('MMMM YYYY')}</strong>
+            </div>
+            <div style={{ marginBottom: 8, fontSize: 13, color: '#555' }}>
+              Format attendu : colonnes <strong>Nom</strong>, <strong>Prénom</strong>, puis <strong>FARINE</strong>, <strong>BETAIL</strong>, <strong>VOLAILLE</strong>, <strong>PATES</strong> (en tonnes).
+            </div>
+            <Button size="small" icon={<DownloadOutlined />} onClick={downloadTemplate} style={{ marginBottom: 16 }}>
+              Télécharger le modèle pré-rempli
+            </Button>
+            <div
+              style={{
+                border: '2px dashed #a5d6a7', borderRadius: 8, padding: '24px 16px',
+                textAlign: 'center', cursor: 'pointer', background: importFile ? '#f1f8e9' : '#fafff8',
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: 'none' }}
+                onChange={e => setImportFile(e.target.files?.[0] ?? null)}
+              />
+              {importFile ? (
+                <span style={{ color: '#1B5E20', fontWeight: 600 }}>
+                  {importFile.name}
+                </span>
+              ) : (
+                <span style={{ color: '#888' }}>
+                  Cliquez pour sélectionner un fichier Excel (.xlsx)
+                </span>
+              )}
+            </div>
+          </Spin>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+              <div style={{ flex: 1, background: '#e8f5e9', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#1B5E20' }}>{importResult.created}</div>
+                <div style={{ fontSize: 12, color: '#555' }}>Créés</div>
+              </div>
+              <div style={{ flex: 1, background: '#fff3e0', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#E65100' }}>{importResult.updated}</div>
+                <div style={{ fontSize: 12, color: '#555' }}>Mis à jour</div>
+              </div>
+              {importResult.errors.length > 0 && (
+                <div style={{ flex: 1, background: '#ffebee', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#c62828' }}>{importResult.errors.length}</div>
+                  <div style={{ fontSize: 12, color: '#555' }}>Erreurs</div>
+                </div>
+              )}
+            </div>
+            {importResult.errors.length > 0 && (
+              <Alert
+                type="warning"
+                message="Lignes ignorées"
+                description={
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    {importResult.errors.map((e, i) => (
+                      <li key={i}><strong>{e.nom}</strong> — {e.raison}</li>
+                    ))}
+                  </ul>
+                }
+              />
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Modal Saisie manuelle ── */}
       <Modal
         title={editing ? 'Modifier un objectif' : 'Saisir un objectif'}
         open={modalOpen} onOk={onSave} onCancel={() => setModalOpen(false)}
