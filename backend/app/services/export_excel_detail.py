@@ -184,7 +184,7 @@ def _write_headers(ws, mois_label: str, periode: str):
         (COL_OBJ_TOT,  "Obj.\nTotal (T)"),
         (COL_REA_TOT,  "Réal.\nTotal (T)"),
         (COL_TX_TOT,   "Taux\nTotal %"),
-        (COL_CA,       "CA Base\n(FCFA)"),
+        (COL_CA,       "CA Réf. M-1\n(FCFA)"),
         (COL_PRIME_FX, "Prime\nFixe"),
         (COL_COMM_NA,  "Commission\nNA (0.5%)"),
         (COL_TOT_QANT, "TOTAL\nQUANTI"),
@@ -420,6 +420,8 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
     emp_ids = [b.employee_id for b in bonuses]
 
     import sqlalchemy
+
+    # Volumes du mois M (pour affichage réalisé par gamme)
     sales_rows = (
         db.query(SaleData.employee_id, SaleData.gamme,
                  sqlalchemy.func.sum(SaleData.volume).label("vol"),
@@ -429,10 +431,22 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         .all()
     )
     vol_by_emp_gamme: dict = defaultdict(lambda: defaultdict(float))
-    ca_by_emp: dict = defaultdict(float)
     for row in sales_rows:
         vol_by_emp_gamme[row.employee_id][row.gamme] = float(row.vol or 0)
-        ca_by_emp[row.employee_id] += float(row.ca or 0)
+
+    # CA M-1 : c'est ce CA qui sert de base au calcul de la prime V12
+    annee_i, mois_i = int(periode[:4]), int(periode[5:7])
+    periode_m1 = f"{annee_i - 1}-12" if mois_i == 1 else f"{annee_i}-{mois_i - 1:02d}"
+    sales_m1_rows = (
+        db.query(SaleData.employee_id,
+                 sqlalchemy.func.sum(SaleData.montant_ht).label("ca"))
+        .filter(SaleData.periode == periode_m1, SaleData.employee_id.in_(emp_ids))
+        .group_by(SaleData.employee_id)
+        .all()
+    )
+    ca_by_emp: dict = defaultdict(float)
+    for row in sales_m1_rows:
+        ca_by_emp[row.employee_id] = float(row.ca or 0)
 
     obj_rows = (
         db.query(Objective.employee_id, Objective.gamme,
