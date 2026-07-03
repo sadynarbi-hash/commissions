@@ -21,7 +21,7 @@ C_VERT_FONCE  = "1B5E20"
 C_VERT_MID    = "2E7D32"
 C_VERT_CLAIR  = "E8F5E9"
 C_OR          = "F9A825"
-C_ORANGE      = "6D4C41"   # brun-ocre (blé/céréales)
+C_ORANGE      = "2E7D32"   # vert moyen NMA (quanti)
 C_GRIS_MED    = "CFD8DC"
 C_BLANC       = "FFFFFF"
 
@@ -163,8 +163,8 @@ def _write_headers(ws, mois_label: str, periode: str):
     section_header(COL_NOM, COL_ZONE,      "IDENTIFICATION",                            C_VERT_MID)
     section_header(COL_OBJ_FAR, COL_COMM_NA,"PRIME QUANTITATIVE — DÉTAIL PAR GAMME",   C_ORANGE)
     section_header(COL_TOT_QANT, COL_TOT_QANT, "TOTAL\nQUANTI",                        C_ORANGE)
-    section_header(COL_CRIT_START, COL_CRIT_END, "PRIME QUALITATIVE — CRITÈRES DÉTAILLÉS", "00695C")
-    section_header(COL_TOT_QUAL, COL_TOT_QUAL, "TOTAL\nQUALI",                          "00695C")
+    section_header(COL_CRIT_START, COL_CRIT_END, "PRIME QUALITATIVE — CRITÈRES DÉTAILLÉS", "1B5E20")
+    section_header(COL_TOT_QUAL, COL_TOT_QUAL, "TOTAL\nQUALI",                          "1B5E20")
     section_header(COL_TOTAL, COL_TOTAL,    "TOTAL\nGLOBAL",                            C_VERT_FONCE)
     ws.row_dimensions[2].height = 30
 
