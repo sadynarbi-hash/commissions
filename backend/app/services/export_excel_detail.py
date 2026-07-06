@@ -105,7 +105,8 @@ COL_CA         = 16
 COL_PRIME_FX   = 17  # Prime fixe (fait partie de la prime quanti)
 COL_COMM_NA    = 18  # Commission nouvelles affaires
 COL_TOT_QANT   = 19  # Total Quanti = Fixe + Perf + Commission
-COL_CRIT_START = 20
+COL_TX_RECOUV  = 20  # Taux de recouvrement M-1 (%)
+COL_CRIT_START = 21
 COL_CRIT_END   = COL_CRIT_START + len(CRITERIA_MAP) - 1
 COL_TOT_QUAL   = COL_CRIT_END + 1
 COL_TOTAL      = COL_TOT_QUAL + 1
@@ -118,6 +119,7 @@ COL_WIDTHS = {
     COL_OBJ_BVF: 9, COL_REA_BVF: 9, COL_TX_BVF: 8,
     COL_OBJ_TOT: 9, COL_REA_TOT: 9, COL_TX_TOT: 8,
     COL_CA: 14, COL_PRIME_FX: 11, COL_COMM_NA: 13, COL_TOT_QANT: 13,
+    COL_TX_RECOUV: 10,
     COL_TOT_QUAL: 12, COL_TOTAL: 14,
 }
 
@@ -162,6 +164,7 @@ def _write_headers(ws, mois_label: str, periode: str):
 
     section_header(COL_NOM, COL_ZONE,      "IDENTIFICATION",                            C_VERT_MID)
     section_header(COL_OBJ_FAR, COL_TOT_QANT, "PRIME QUANTITATIVE — DÉTAIL PAR GAMME",  C_ORANGE)
+    section_header(COL_TX_RECOUV, COL_TX_RECOUV, "RECOUV.\nM-1",                          "37474F")
     section_header(COL_CRIT_START, COL_CRIT_END, "PRIME QUALITATIVE — CRITÈRES DÉTAILLÉS", "1B5E20")
     section_header(COL_TOT_QUAL, COL_TOT_QUAL, "TOTAL\nQUALI",                          "1B5E20")
     section_header(COL_TOTAL, COL_TOTAL,    "TOTAL\nGLOBAL",                            C_VERT_FONCE)
@@ -186,7 +189,8 @@ def _write_headers(ws, mois_label: str, periode: str):
         (COL_CA,       "CA Mois M\n(FCFA)"),
         (COL_PRIME_FX, "Prime\nFixe"),
         (COL_COMM_NA,  "Commission\nNA (0.5%)"),
-        (COL_TOT_QANT, "TOTAL\nQUANTI"),
+        (COL_TOT_QANT,  "TOTAL\nQUANTI"),
+        (COL_TX_RECOUV, "Taux\nRecouv. %"),
     ]
     for code, label in CRITERIA_MAP:
         col = COL_CRIT_START + CRITERIA_MAP.index((code, label))
@@ -297,6 +301,18 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
     tot_qant = prime_fixe + float(bonus.prime_quantitative) + comm
     c_qant = write(COL_TOT_QANT, tot_qant, _fcfa_fmt(), bold=True)
     c_qant.fill = _fill("FFE0B2")
+
+    # Taux recouvrement — extrait du critère RECOUVREMENT dans detail_json
+    tx_recouv = None
+    for c_item in criteria_list:
+        if c_item.get("code") == "RECOUVREMENT":
+            va = c_item.get("valeur_atteinte", "")
+            try:
+                tx_recouv = float(str(va).replace("%", "").strip())
+            except (ValueError, TypeError):
+                pass
+            break
+    write_taux(COL_TX_RECOUV, tx_recouv)
 
     for i, (code, _) in enumerate(CRITERIA_MAP):
         col = COL_CRIT_START + i
