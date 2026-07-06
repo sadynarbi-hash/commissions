@@ -12,7 +12,7 @@ import {
 import dayjs from 'dayjs'
 import {
   getBonuses, calculateBonuses, validateBonuses,
-  getEmployees, exportBonuses, exportBonusesDetail, downloadPV, downloadRecap,
+  getEmployees, exportBonusesDetail, downloadPV, downloadRecap,
 } from '../../api/client'
 import type { Bonus, Employee } from '../../types'
 import { TYPE_POSTE_LABELS } from '../../types'
@@ -85,15 +85,6 @@ export default function Bonuses() {
     load()
   }
 
-  const onExport = async () => {
-    const resp = await exportBonuses(periode)
-    const url = URL.createObjectURL(resp.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `primes_${periode}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   const onExportDetail = async () => {
     const resp = await exportBonusesDetail(periode)
@@ -275,9 +266,6 @@ export default function Bonuses() {
           </Button>
           <Button icon={<CheckCircleOutlined />} onClick={() => setValidateModal(true)} disabled={bonuses.length === 0}>
             Valider
-          </Button>
-          <Button icon={<DownloadOutlined />} onClick={onExport} disabled={bonuses.length === 0}>
-            Excel
           </Button>
           <Button
             icon={<DownloadOutlined />}
