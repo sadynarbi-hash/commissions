@@ -101,12 +101,15 @@ COL_TX_BVF   = 12
 COL_OBJ_TOT  = 13
 COL_REA_TOT  = 14
 COL_TX_TOT   = 15
-COL_CA         = 16
-COL_PRIME_FX   = 17  # Prime fixe (fait partie de la prime quanti)
-COL_COMM_NA    = 18  # Commission nouvelles affaires
-COL_TOT_QANT   = 19  # Total Quanti = Fixe + Perf + Commission
-COL_TX_RECOUV  = 20  # Taux de recouvrement M-1 (%)
-COL_CRIT_START = 21
+COL_CA         = 16  # CA mois M (base prime quantitative)
+COL_CA_M1      = 17  # CA mois M-1 (base recouvrement)
+COL_PRIME_FX   = 18  # Prime fixe (partie de la prime quanti)
+COL_PRIME_PERF = 19  # Prime performance = CA_M × taux_commission
+COL_COMM_NA    = 20  # Commission nouvelles affaires (0.5%)
+COL_TOT_QANT   = 21  # Total Quanti = Fixe + Perf + Commission NA
+COL_TX_RECOUV  = 22  # Taux recouvrement M-1 (%)
+COL_NB_VISITES = 23  # Nombre de visites réalisées
+COL_CRIT_START = 24
 COL_CRIT_END   = COL_CRIT_START + len(CRITERIA_MAP) - 1
 COL_TOT_QUAL   = COL_CRIT_END + 1
 COL_TOTAL      = COL_TOT_QUAL + 1
@@ -118,8 +121,9 @@ COL_WIDTHS = {
     COL_OBJ_PAT: 9, COL_REA_PAT: 9, COL_TX_PAT: 8,
     COL_OBJ_BVF: 9, COL_REA_BVF: 9, COL_TX_BVF: 8,
     COL_OBJ_TOT: 9, COL_REA_TOT: 9, COL_TX_TOT: 8,
-    COL_CA: 14, COL_PRIME_FX: 11, COL_COMM_NA: 13, COL_TOT_QANT: 13,
-    COL_TX_RECOUV: 10,
+    COL_CA: 14, COL_CA_M1: 14,
+    COL_PRIME_FX: 11, COL_PRIME_PERF: 13, COL_COMM_NA: 13, COL_TOT_QANT: 13,
+    COL_TX_RECOUV: 10, COL_NB_VISITES: 9,
     COL_TOT_QUAL: 12, COL_TOTAL: 14,
 }
 
@@ -163,9 +167,10 @@ def _write_headers(ws, mois_label: str, periode: str):
     ws.row_dimensions[1].height = 28
 
     section_header(COL_NOM, COL_ZONE,      "IDENTIFICATION",                            C_VERT_MID)
-    section_header(COL_OBJ_FAR, COL_TOT_QANT, "PRIME QUANTITATIVE — DÉTAIL PAR GAMME",  C_ORANGE)
-    section_header(COL_TX_RECOUV, COL_TX_RECOUV, "RECOUV.\nM-1",                          "37474F")
-    section_header(COL_CRIT_START, COL_CRIT_END, "PRIME QUALITATIVE — CRITÈRES DÉTAILLÉS", "1B5E20")
+    section_header(COL_OBJ_FAR, COL_TOT_QANT,   "PRIME QUANTITATIVE — DÉTAIL PAR GAMME",   C_ORANGE)
+    section_header(COL_TX_RECOUV, COL_TX_RECOUV, "RECOUV.\nM-1",                            "37474F")
+    section_header(COL_NB_VISITES, COL_NB_VISITES, "VISITES",                               "455A64")
+    section_header(COL_CRIT_START, COL_CRIT_END,  "PRIME QUALITATIVE — CRITÈRES DÉTAILLÉS", "1B5E20")
     section_header(COL_TOT_QUAL, COL_TOT_QUAL, "TOTAL\nQUALI",                          "1B5E20")
     section_header(COL_TOTAL, COL_TOTAL,    "TOTAL\nGLOBAL",                            C_VERT_FONCE)
     ws.row_dimensions[2].height = 30
@@ -186,11 +191,14 @@ def _write_headers(ws, mois_label: str, periode: str):
         (COL_OBJ_TOT,  "Obj.\nTotal (T)"),
         (COL_REA_TOT,  "Réal.\nTotal (T)"),
         (COL_TX_TOT,   "Taux\nTotal %"),
-        (COL_CA,       "CA Mois M\n(FCFA)"),
-        (COL_PRIME_FX, "Prime\nFixe"),
-        (COL_COMM_NA,  "Commission\nNA (0.5%)"),
-        (COL_TOT_QANT,  "TOTAL\nQUANTI"),
-        (COL_TX_RECOUV, "Taux\nRecouv. %"),
+        (COL_CA,         "CA Mois M\n(FCFA)"),
+        (COL_CA_M1,      "CA M-1\n(FCFA)"),
+        (COL_PRIME_FX,   "Prime\nFixe"),
+        (COL_PRIME_PERF, "Prime\nPerf"),
+        (COL_COMM_NA,    "Commission\nNA (0.5%)"),
+        (COL_TOT_QANT,   "TOTAL\nQUANTI"),
+        (COL_TX_RECOUV,  "Taux\nRecouv. %"),
+        (COL_NB_VISITES, "Nb\nVisites"),
     ]
     for code, label in CRITERIA_MAP:
         col = COL_CRIT_START + CRITERIA_MAP.index((code, label))
@@ -217,6 +225,7 @@ def _write_headers(ws, mois_label: str, periode: str):
 # ── Écriture d'une ligne employé ──────────────────────────────────────────────
 def _write_emp_row(ws, row: int, bonus: Bonus,
                    vol_by_emp_gamme: dict, ca_by_emp: dict, obj_by_emp_gamme: dict,
+                   ca_by_emp_m1: dict | None = None,
                    row_fill: PatternFill | None = None,
                    indent: bool = False):
     emp: Employee = bonus.employee
@@ -289,16 +298,26 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
     taux_tot = float(bonus.taux_atteinte_global) if bonus.taux_atteinte_global else gtaux(vol_tot, obj_tot)
     write_taux(COL_TX_TOT, taux_tot)
 
-    write(COL_CA, ca_by_emp.get(emp.id if emp else -1, 0) or None, _fcfa_fmt())
+    emp_id = emp.id if emp else -1
+    write(COL_CA,   ca_by_emp.get(emp_id, 0) or None, _fcfa_fmt())
+    ca_m1 = (ca_by_emp_m1 or {}).get(emp_id, 0)
+    write(COL_CA_M1, ca_m1 or None, _fcfa_fmt())
+
     prime_fixe = float(bonus.prime_suivi_fixe)
     write(COL_PRIME_FX, prime_fixe or None, _fcfa_fmt())
+
+    prime_perf = float(bonus.prime_quantitative)
+    c_perf = write(COL_PRIME_PERF, prime_perf or None, _fcfa_fmt())
+    if prime_perf > 0:
+        c_perf.fill = _fill("FFF9C4")
+
     comm = float(bonus.commission_nouvelles_affaires)
     c_comm = write(COL_COMM_NA, comm or None, _fcfa_fmt())
     if comm > 0:
-        c_comm.fill = _fill("FFF9C4")
+        c_comm.fill = _fill("E8F5E9")
 
     # TOTAL QUANTI = Prime Fixe + Prime Perf + Commission NA
-    tot_qant = prime_fixe + float(bonus.prime_quantitative) + comm
+    tot_qant = prime_fixe + prime_perf + comm
     c_qant = write(COL_TOT_QANT, tot_qant, _fcfa_fmt(), bold=True)
     c_qant.fill = _fill("FFE0B2")
 
@@ -313,6 +332,11 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
                 pass
             break
     write_taux(COL_TX_RECOUV, tx_recouv)
+
+    nb_vis = int(bonus.nb_visites or 0)
+    c_vis = write(COL_NB_VISITES, nb_vis or None, "0")
+    if nb_vis > 0:
+        c_vis.fill = _fill("E3F2FD")
 
     for i, (code, _) in enumerate(CRITERIA_MAP):
         col = COL_CRIT_START + i
@@ -361,7 +385,8 @@ def _write_totals_row(ws, row: int, main_rows: list[int]):
         parts = "+".join(f"{ltr}{r}" for r in main_rows)
         return f"={parts}" if parts else "=0"
 
-    for col in [COL_PRIME_FX, COL_COMM_NA, COL_TOT_QANT, COL_TOT_QUAL, COL_TOTAL]:
+    for col in [COL_CA_M1, COL_PRIME_FX, COL_PRIME_PERF, COL_COMM_NA,
+                COL_TOT_QANT, COL_NB_VISITES, COL_TOT_QUAL, COL_TOTAL]:
         c = ws.cell(row, col, sum_formula(col))
         c.font = Font(bold=True, size=10, color=C_BLANC)
         c.fill = _fill(C_VERT_FONCE)
@@ -383,6 +408,7 @@ def _write_totals_row(ws, row: int, main_rows: list[int]):
 # ── Construction d'une feuille ────────────────────────────────────────────────
 def _fill_sheet(ws, bonuses: list, periode: str, mois_label: str,
                 vol_by_emp_gamme: dict, ca_by_emp: dict, obj_by_emp_gamme: dict,
+                ca_by_emp_m1: dict | None = None,
                 drilldown_map: dict | None = None,
                 add_autofilter: bool = True):
     """
@@ -398,7 +424,8 @@ def _fill_sheet(ws, bonuses: list, periode: str, mois_label: str,
 
     for bonus in bonuses:
         main_rows.append(row)
-        _write_emp_row(ws, row, bonus, vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme)
+        _write_emp_row(ws, row, bonus, vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
+                       ca_by_emp_m1=ca_by_emp_m1)
         row += 1
 
         if drilldown_map and bonus.id in drilldown_map:
@@ -411,6 +438,7 @@ def _fill_sheet(ws, bonuses: list, periode: str, mois_label: str,
                 for tb in sorted(team, key=lambda b: (b.employee.nom if b.employee else "")):
                     _write_emp_row(ws, row, tb,
                                    vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
+                                   ca_by_emp_m1=ca_by_emp_m1,
                                    row_fill=_fill("EFF8EF"),
                                    indent=True)
                     row += 1
@@ -464,6 +492,18 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
     for row in obj_rows:
         obj_by_emp_gamme[row.employee_id][row.gamme] = float(row.vol or 0)
 
+    # CA mois M-1 (base recouvrement)
+    annee_i, mois_i = int(periode[:4]), int(periode[5:7])
+    periode_m1 = f"{annee_i - 1}-12" if mois_i == 1 else f"{annee_i}-{mois_i - 1:02d}"
+    sales_m1_rows = (
+        db.query(SaleData.employee_id,
+                 sqlalchemy.func.sum(SaleData.montant_ht).label("ca"))
+        .filter(SaleData.periode == periode_m1, SaleData.employee_id.in_(emp_ids))
+        .group_by(SaleData.employee_id)
+        .all()
+    )
+    ca_by_emp_m1: dict = {r.employee_id: float(r.ca or 0) for r in sales_m1_rows}
+
     # Regroupement par rôle et par région
     by_role: dict[str, list[Bonus]] = defaultdict(list)
     for b in bonuses:
@@ -488,6 +528,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
     ws_recap.title = "Récap"
     _fill_sheet(ws_recap, bonuses, periode, mois_label,
                 vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
+                ca_by_emp_m1=ca_by_emp_m1,
                 add_autofilter=True)
 
     # Feuilles par rôle
@@ -512,6 +553,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
 
         _fill_sheet(ws_role, role_bonuses, periode, mois_label,
                     vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
+                    ca_by_emp_m1=ca_by_emp_m1,
                     drilldown_map=drilldown_map,
                     add_autofilter=(drilldown_map is None))
 
