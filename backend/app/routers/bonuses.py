@@ -83,10 +83,22 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
         SaleData.periode == periode,
     ).all()
 
-    vol_total = sum(float(s.volume) for s in sales)
-    vol_pates = sum(float(s.volume) for s in sales if s.gamme == Gamme.PATES)
-    vol_autres = vol_total - vol_pates
-    mnt_facture = sum(float(s.montant_ht) for s in sales)
+    # Règle métier : on ne compte que les gammes pour lesquelles un objectif a été fixé.
+    # Une vente sur une gamme sans objectif n'entre pas dans le calcul de la prime quanti.
+    _gammes_bvf = {Gamme.BETAIL, Gamme.VOLAILLE, Gamme.BVF}
+    _has_bvf_obj = any(obj_sums.get(g, 0) > 0 for g in _gammes_bvf)
+
+    def _has_obj(gamme: Gamme) -> bool:
+        if gamme in _gammes_bvf:
+            return _has_bvf_obj
+        if obj_sums.get(Gamme.ALL, 0) > 0:
+            return True
+        return obj_sums.get(gamme, 0) > 0
+
+    vol_total   = sum(float(s.volume)    for s in sales if _has_obj(s.gamme))
+    vol_pates   = sum(float(s.volume)    for s in sales if s.gamme == Gamme.PATES)
+    vol_autres  = vol_total - vol_pates
+    mnt_facture = sum(float(s.montant_ht) for s in sales if _has_obj(s.gamme))
 
     # SV fallback : si les objectifs par gamme sont absents mais obj_all existe,
     # répartir obj_all proportionnellement au réalisé pâtes/autres.
