@@ -475,11 +475,11 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         .group_by(SaleData.employee_id, SaleData.gamme)
         .all()
     )
-    vol_by_emp_gamme: dict = defaultdict(lambda: defaultdict(float))
-    ca_by_emp: dict = defaultdict(float)
+    vol_by_emp_gamme:    dict = defaultdict(lambda: defaultdict(float))
+    raw_ca_by_emp_gamme: dict = defaultdict(lambda: defaultdict(float))
     for row in sales_rows:
-        vol_by_emp_gamme[row.employee_id][row.gamme] = float(row.vol or 0)
-        ca_by_emp[row.employee_id] += float(row.ca or 0)
+        vol_by_emp_gamme[row.employee_id][row.gamme]    = float(row.vol or 0)
+        raw_ca_by_emp_gamme[row.employee_id][row.gamme] = float(row.ca  or 0)
 
     obj_rows = (
         db.query(Objective.employee_id, Objective.gamme,
@@ -491,6 +491,22 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
     obj_by_emp_gamme: dict = defaultdict(lambda: defaultdict(float))
     for row in obj_rows:
         obj_by_emp_gamme[row.employee_id][row.gamme] = float(row.vol or 0)
+
+    # CA retenu = uniquement les gammes avec objectif (même règle que bonus_engine)
+    _BVF_GAMMES = {Gamme.BETAIL, Gamme.VOLAILLE, Gamme.BVF}
+    ca_by_emp: dict = defaultdict(float)
+    for emp_id in emp_ids:
+        obj_g   = obj_by_emp_gamme[emp_id]
+        has_bvf = any(obj_g.get(g, 0) > 0 for g in _BVF_GAMMES)
+        has_all = obj_g.get(Gamme.ALL, 0) > 0
+        for gamme, ca in raw_ca_by_emp_gamme[emp_id].items():
+            if has_all:
+                ca_by_emp[emp_id] += ca
+            elif gamme in _BVF_GAMMES:
+                if has_bvf:
+                    ca_by_emp[emp_id] += ca
+            elif obj_g.get(gamme, 0) > 0:
+                ca_by_emp[emp_id] += ca
 
     # CA mois M-1 (base recouvrement)
     annee_i, mois_i = int(periode[:4]), int(periode[5:7])
