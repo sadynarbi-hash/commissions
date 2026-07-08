@@ -111,7 +111,6 @@ type CriteriaMap = Record<number, Record<string, boolean>>
 
 export default function CriteriaForm() {
   const [periode, setPeriode] = useState(dayjs().format('YYYY-MM'))
-  const [validePar, setValidePar] = useState('')
   const [roleFilter, setRoleFilter] = useState<string | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [criteria, setCriteria] = useState<CriteriaMap>({})
@@ -163,10 +162,6 @@ export default function CriteriaForm() {
   const hasPendingChanges = JSON.stringify(criteria) !== JSON.stringify(savedCriteria)
 
   const save = async () => {
-    if (!validePar.trim()) {
-      message.warning('Saisir votre nom dans "Validé par" avant d\'enregistrer')
-      return
-    }
     setSaving(true)
     try {
       const promises: Promise<unknown>[] = []
@@ -179,7 +174,7 @@ export default function CriteriaForm() {
               periode,
               critere_code: code,
               valeur: val,
-              saisi_par: validePar.trim(),
+              saisi_par: 'système',
             }))
           }
         }
@@ -308,12 +303,6 @@ export default function CriteriaForm() {
               { value: 'ATC_BV',        label: 'ATC' },
               { value: 'RESP_TECH_FP',  label: 'Resp. Tech. FP' },
             ]}
-          />
-          <Input
-            placeholder="Validé par"
-            value={validePar}
-            onChange={e => setValidePar(e.target.value)}
-            style={{ width: 160 }}
           />
           <Button
             type="primary"
