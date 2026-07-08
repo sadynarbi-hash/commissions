@@ -203,7 +203,9 @@ export default function CriteriaForm() {
     })
 
   const activeRoles = new Set(sorted.map(e => e.type_poste))
-  const visibleCriteria = CRITERIA_DEFS.filter(c => c.roles.some(r => activeRoles.has(r as any)))
+  const visibleCriteria = CRITERIA_DEFS
+    .filter(c => c.roles.some(r => activeRoles.has(r as any)))
+    .sort((a, b) => (a.auto ? 1 : 0) - (b.auto ? 1 : 0))
 
   const isModified = (empId: number) =>
     Object.entries(criteria[empId] || {}).some(
