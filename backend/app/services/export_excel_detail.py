@@ -32,6 +32,7 @@ MOIS_FR = {
 }
 
 CRITERIA_MAP = [
+    ("VISITES_JOURNALIERES",    "Visites journalières"),
     ("RECOUVREMENT",            "Recouvrement"),
     ("PREVISION",               "Fiabilité prévisions"),
     ("PLANNING_AVANT_01",       "Planning avant 01"),
@@ -41,7 +42,6 @@ CRITERIA_MAP = [
     ("CLIENTS_ACTIFS",          "Clients fermes actifs"),
     ("TOP_CLIENTS",             "Top clients croiss."),
     ("CRM_CONFORMITE",          "CRM conformité"),
-    ("VISITES_JOURNALIERES",    "Visites journalières"),
     ("VISITES_FERMES",          "Visites fermes"),
     ("KPIS_FERME",              "KPIs ferme"),
     ("ACCOMPAGNEMENT",          "Accompagnement manag."),
