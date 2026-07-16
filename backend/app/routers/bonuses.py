@@ -97,8 +97,13 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
 
     vol_total   = sum(float(s.volume)    for s in sales if _has_obj(s.gamme))
     vol_pates   = sum(float(s.volume)    for s in sales if s.gamme == Gamme.PATES)
+    vol_farine  = sum(float(s.volume)    for s in sales if s.gamme == Gamme.FARINE and _has_obj(s.gamme))
+    vol_bvf_r   = sum(float(s.volume)    for s in sales if s.gamme in _gammes_bvf and _has_obj(s.gamme))
     vol_autres  = vol_total - vol_pates
     mnt_facture = sum(float(s.montant_ht) for s in sales if _has_obj(s.gamme))
+    ca_pates_m  = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.PATES)
+    ca_farine_m = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.FARINE and _has_obj(s.gamme))
+    ca_bvf_m    = sum(float(s.montant_ht) for s in sales if s.gamme in _gammes_bvf and _has_obj(s.gamme))
 
     # SV fallback : si les objectifs par gamme sont absents mais obj_all existe,
     # répartir obj_all proportionnellement au réalisé pâtes/autres.
@@ -307,6 +312,13 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
         volume_pates_objectif=obj_pates,
         volume_autres_realise=vol_autres,
         volume_autres_objectif=obj_bvf + obj_farine + obj_nutri,
+        vol_farine_realise=vol_farine,
+        objectif_farine=obj_farine,
+        ca_farine_m=ca_farine_m,
+        vol_bvf_realise=vol_bvf_r,
+        objectif_bvf=obj_bvf,
+        ca_bvf_m=ca_bvf_m,
+        ca_pates_m=ca_pates_m,
         montant_facture=mnt_facture_m1,    # M-1 : base recouvrement
         montant_recouvre=mnt_recouv,       # M-1 : montant récupéré
         montant_facture_m=mnt_facture,     # M   : base prime quantitative V12

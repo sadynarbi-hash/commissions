@@ -143,6 +143,14 @@ def calculate_bonus(
     accompagnement_managerial: bool = False,
     # Nouvelles affaires
     ca_nouvelles_affaires: float = 0,
+    # Per-gamme pour COMMERCIAL (prime quanti par gamme)
+    vol_farine_realise: float = 0,
+    objectif_farine: float = 0,
+    ca_farine_m: float = 0,
+    vol_bvf_realise: float = 0,
+    objectif_bvf: float = 0,
+    ca_bvf_m: float = 0,
+    ca_pates_m: float = 0,
 ) -> BonusResult:
 
     result = BonusResult(
@@ -166,15 +174,16 @@ def calculate_bonus(
 
     elif type_poste == TypePoste.COMMERCIAL:
         _calc_commercial(result, volume_realise, volume_objectif,
-                         montant_facture_m or montant_facture,  # CA M pour prime quanti
-                         montant_facture, montant_recouvre,     # CA M-1 pour recouvrement
+                         volume_pates_realise, volume_pates_objectif, ca_pates_m,
+                         vol_farine_realise, objectif_farine, ca_farine_m,
+                         vol_bvf_realise, objectif_bvf, ca_bvf_m,
+                         montant_facture, montant_recouvre,
                          prevision, realise_pour_prevision,
                          nb_clients_portefeuille, nb_clients_avec_achat,
                          nb_clients_croissance, top_clients_volume, top_clients_volume_n1,
                          nb_visites_realisees, nb_visites_objectif, planning_envoye_avant_01,
                          taux_crm_commandes, taux_crm_visites, taux_rapport_activities,
-                         ca_nouvelles_affaires,
-                         pates_commercial=(volume_pates_objectif > 0 and volume_pates_objectif > volume_autres_objectif))
+                         ca_nouvelles_affaires)
 
     elif type_poste == TypePoste.ATC_BV:
         _calc_atc(result, volume_realise, volume_objectif, montant_facture, montant_recouvre,
@@ -296,23 +305,36 @@ def _calc_sv(r: BonusResult, vol_pates_real, vol_pates_obj, vol_autres_real, vol
 # COMMERCIAL
 # ──────────────────────────────────────────────────────────
 def _calc_commercial(r: BonusResult, vol_real, vol_obj,
-                     mnt_fact_m,           # CA mois M → prime quantitative V12
+                     # Par gamme : volume réalisé, objectif volume, CA mois M
+                     vol_pates, obj_pates, ca_pates_m,
+                     vol_farine, obj_farine, ca_farine_m,
+                     vol_bvf, obj_bvf, ca_bvf_m,
                      mnt_fact_m1,          # CA mois M-1 → base recouvrement
                      mnt_recouv,
                      prevision, real_prev, nb_portefeuille, nb_achat, nb_croissance,
                      top_vol, top_vol_n1, nb_visites_real, nb_visites_obj,
                      planning_avant_01, taux_crm_cmd, taux_crm_vis, taux_rapports,
-                     ca_nouvelles_affaires, pates_commercial: bool = False):
+                     ca_nouvelles_affaires):
     r.prime_suivi_fixe = 100_000
     r.commission_nouvelles_affaires = round(ca_nouvelles_affaires * 0.005, 2)
 
     taux = _taux(vol_real, vol_obj)
     r.taux_atteinte_global = round(taux * 100, 2)
 
-    # V12 : prime quantitative = % du CA mois M selon palier
-    paliers_taux = TAUX_COMMERCIAL_PATES if pates_commercial else TAUX_COMMERCIAL_BVF
-    taux_commission = _palier(taux, paliers_taux)
-    r.prime_quantitative = round(mnt_fact_m * taux_commission, 0)
+    # V12 : commission par gamme — chaque gamme a son propre taux d'atteinte et palier
+    comm = 0.0
+    if obj_pates > 0:
+        comm += ca_pates_m * _palier(_taux(vol_pates, obj_pates), TAUX_COMMERCIAL_PATES)
+    if obj_farine > 0:
+        comm += ca_farine_m * _palier(_taux(vol_farine, obj_farine), TAUX_COMMERCIAL_BVF)
+    if obj_bvf > 0:
+        comm += ca_bvf_m * _palier(_taux(vol_bvf, obj_bvf), TAUX_COMMERCIAL_BVF)
+    if obj_pates == 0 and obj_farine == 0 and obj_bvf == 0:
+        # Fallback obj_all : global taux sur CA total
+        ca_total = ca_pates_m + ca_farine_m + ca_bvf_m
+        paliers = TAUX_COMMERCIAL_PATES if vol_pates > (vol_farine + vol_bvf) else TAUX_COMMERCIAL_BVF
+        comm = ca_total * _palier(taux, paliers)
+    r.prime_quantitative = round(comm, 0)
 
     qualif = taux >= 0.90
     r.qualitative_eligible = qualif
