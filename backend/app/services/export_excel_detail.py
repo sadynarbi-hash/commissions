@@ -102,7 +102,7 @@ COL_OBJ_TOT  = 13
 COL_REA_TOT  = 14
 COL_TX_TOT   = 15
 COL_CA         = 16  # CA mois M (base prime quantitative)
-COL_CA_M1      = 17  # CA mois M-1 (base recouvrement)
+COL_CA_PRIME   = 17  # CA Primé (gammes avec taux ≥ 90%)
 COL_PRIME_FX   = 18  # Prime fixe (partie de la prime quanti)
 COL_PRIME_PERF = 19  # Prime performance = CA_M × taux_commission
 COL_COMM_NA    = 20  # Commission nouvelles affaires (0.5%)
@@ -121,7 +121,7 @@ COL_WIDTHS = {
     COL_OBJ_PAT: 9, COL_REA_PAT: 9, COL_TX_PAT: 8,
     COL_OBJ_BVF: 9, COL_REA_BVF: 9, COL_TX_BVF: 8,
     COL_OBJ_TOT: 9, COL_REA_TOT: 9, COL_TX_TOT: 8,
-    COL_CA: 14, COL_CA_M1: 14,
+    COL_CA: 14, COL_CA_PRIME: 14,
     COL_PRIME_FX: 11, COL_PRIME_PERF: 13, COL_COMM_NA: 13, COL_TOT_QANT: 13,
     COL_TX_RECOUV: 10, COL_NB_VISITES: 9,
     COL_TOT_QUAL: 12, COL_TOTAL: 14,
@@ -192,7 +192,7 @@ def _write_headers(ws, mois_label: str, periode: str):
         (COL_REA_TOT,  "Réal.\nTotal (T)"),
         (COL_TX_TOT,   "Taux\nTotal %"),
         (COL_CA,         "CA Mois M\n(FCFA)"),
-        (COL_CA_M1,      "CA M-1\n(FCFA)"),
+        (COL_CA_PRIME,      "CA Primé\n(FCFA)"),
         (COL_PRIME_FX,   "Prime\nFixe"),
         (COL_PRIME_PERF, "Prime\nPerf"),
         (COL_COMM_NA,    "Commission\nNA (0.5%)"),
@@ -225,7 +225,7 @@ def _write_headers(ws, mois_label: str, periode: str):
 # ── Écriture d'une ligne employé ──────────────────────────────────────────────
 def _write_emp_row(ws, row: int, bonus: Bonus,
                    vol_by_emp_gamme: dict, ca_by_emp: dict, obj_by_emp_gamme: dict,
-                   ca_by_emp_m1: dict | None = None,
+                   ca_prime_by_emp: dict | None = None,
                    row_fill: PatternFill | None = None,
                    indent: bool = False):
     emp: Employee = bonus.employee
@@ -300,8 +300,8 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
 
     emp_id = emp.id if emp else -1
     write(COL_CA,   ca_by_emp.get(emp_id, 0) or None, _fcfa_fmt())
-    ca_m1 = (ca_by_emp_m1 or {}).get(emp_id, 0)
-    write(COL_CA_M1, ca_m1 or None, _fcfa_fmt())
+    ca_m1 = (ca_prime_by_emp or {}).get(emp_id, 0)
+    write(COL_CA_PRIME, ca_m1 or None, _fcfa_fmt())
 
     prime_fixe = float(bonus.prime_suivi_fixe)
     write(COL_PRIME_FX, prime_fixe or None, _fcfa_fmt())
@@ -385,7 +385,7 @@ def _write_totals_row(ws, row: int, main_rows: list[int]):
         parts = "+".join(f"{ltr}{r}" for r in main_rows)
         return f"={parts}" if parts else "=0"
 
-    for col in [COL_CA_M1, COL_PRIME_FX, COL_PRIME_PERF, COL_COMM_NA,
+    for col in [COL_CA_PRIME, COL_PRIME_FX, COL_PRIME_PERF, COL_COMM_NA,
                 COL_TOT_QANT, COL_NB_VISITES, COL_TOT_QUAL, COL_TOTAL]:
         c = ws.cell(row, col, sum_formula(col))
         c.font = Font(bold=True, size=10, color=C_BLANC)
@@ -408,7 +408,7 @@ def _write_totals_row(ws, row: int, main_rows: list[int]):
 # ── Construction d'une feuille ────────────────────────────────────────────────
 def _fill_sheet(ws, bonuses: list, periode: str, mois_label: str,
                 vol_by_emp_gamme: dict, ca_by_emp: dict, obj_by_emp_gamme: dict,
-                ca_by_emp_m1: dict | None = None,
+                ca_prime_by_emp: dict | None = None,
                 drilldown_map: dict | None = None,
                 add_autofilter: bool = True):
     """
@@ -425,7 +425,7 @@ def _fill_sheet(ws, bonuses: list, periode: str, mois_label: str,
     for bonus in bonuses:
         main_rows.append(row)
         _write_emp_row(ws, row, bonus, vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
-                       ca_by_emp_m1=ca_by_emp_m1)
+                       ca_prime_by_emp=ca_prime_by_emp)
         row += 1
 
         if drilldown_map and bonus.id in drilldown_map:
@@ -438,7 +438,7 @@ def _fill_sheet(ws, bonuses: list, periode: str, mois_label: str,
                 for tb in sorted(team, key=lambda b: (b.employee.nom if b.employee else "")):
                     _write_emp_row(ws, row, tb,
                                    vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
-                                   ca_by_emp_m1=ca_by_emp_m1,
+                                   ca_prime_by_emp=ca_prime_by_emp,
                                    row_fill=_fill("EFF8EF"),
                                    indent=True)
                     row += 1
@@ -508,17 +508,34 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
             elif obj_g.get(gamme, 0) > 0:
                 ca_by_emp[emp_id] += ca
 
-    # CA mois M-1 (base recouvrement)
-    annee_i, mois_i = int(periode[:4]), int(periode[5:7])
-    periode_m1 = f"{annee_i - 1}-12" if mois_i == 1 else f"{annee_i}-{mois_i - 1:02d}"
-    sales_m1_rows = (
-        db.query(SaleData.employee_id,
-                 sqlalchemy.func.sum(SaleData.montant_ht).label("ca"))
-        .filter(SaleData.periode == periode_m1, SaleData.employee_id.in_(emp_ids))
-        .group_by(SaleData.employee_id)
-        .all()
-    )
-    ca_by_emp_m1: dict = {r.employee_id: float(r.ca or 0) for r in sales_m1_rows}
+    # CA Primé = CA des gammes où taux d'atteinte ≥ 90%
+    ca_prime_by_emp: dict = defaultdict(float)
+    for emp_id in emp_ids:
+        obj_g = obj_by_emp_gamme[emp_id]
+        vol_g = vol_by_emp_gamme[emp_id]
+        raw_g = raw_ca_by_emp_gamme[emp_id]
+        has_bvf_obj = any(obj_g.get(g, 0) > 0 for g in _BVF_GAMMES)
+        # BVF group (taux agrégé)
+        if has_bvf_obj:
+            vol_bvf = sum(vol_g.get(g, 0) for g in _BVF_GAMMES)
+            obj_bvf = sum(obj_g.get(g, 0) for g in _BVF_GAMMES)
+            if obj_bvf > 0 and vol_bvf / obj_bvf >= 0.90:
+                ca_prime_by_emp[emp_id] += sum(raw_g.get(g, 0) for g in _BVF_GAMMES)
+        # Farine
+        if obj_g.get(Gamme.FARINE, 0) > 0:
+            taux_f = vol_g.get(Gamme.FARINE, 0) / obj_g[Gamme.FARINE]
+            if taux_f >= 0.90:
+                ca_prime_by_emp[emp_id] += raw_g.get(Gamme.FARINE, 0)
+        # Pâtes
+        if obj_g.get(Gamme.PATES, 0) > 0:
+            taux_p = vol_g.get(Gamme.PATES, 0) / obj_g[Gamme.PATES]
+            if taux_p >= 0.90:
+                ca_prime_by_emp[emp_id] += raw_g.get(Gamme.PATES, 0)
+        # ALL (fallback)
+        if obj_g.get(Gamme.ALL, 0) > 0:
+            vol_tot = sum(vol_g.values())
+            if obj_g[Gamme.ALL] > 0 and vol_tot / obj_g[Gamme.ALL] >= 0.90:
+                ca_prime_by_emp[emp_id] = ca_by_emp[emp_id]
 
     # Regroupement par rôle et par région
     by_role: dict[str, list[Bonus]] = defaultdict(list)
@@ -544,7 +561,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
     ws_recap.title = "Récap"
     _fill_sheet(ws_recap, bonuses, periode, mois_label,
                 vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
-                ca_by_emp_m1=ca_by_emp_m1,
+                ca_prime_by_emp=ca_prime_by_emp,
                 add_autofilter=True)
 
     # Feuilles par rôle
@@ -569,7 +586,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
 
         _fill_sheet(ws_role, role_bonuses, periode, mois_label,
                     vol_by_emp_gamme, ca_by_emp, obj_by_emp_gamme,
-                    ca_by_emp_m1=ca_by_emp_m1,
+                    ca_prime_by_emp=ca_prime_by_emp,
                     drilldown_map=drilldown_map,
                     add_autofilter=(drilldown_map is None))
 
