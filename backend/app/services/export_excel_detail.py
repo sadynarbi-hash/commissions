@@ -508,7 +508,7 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
             elif obj_g.get(gamme, 0) > 0:
                 ca_by_emp[emp_id] += ca
 
-    # CA Primé = CA des gammes où taux d'atteinte ≥ 90%
+    # CA Primé = CA des gammes où taux d'atteinte ≥ 85%
     ca_prime_by_emp: dict = defaultdict(float)
     for emp_id in emp_ids:
         obj_g = obj_by_emp_gamme[emp_id]
@@ -519,22 +519,22 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         if has_bvf_obj:
             vol_bvf = sum(vol_g.get(g, 0) for g in _BVF_GAMMES)
             obj_bvf = sum(obj_g.get(g, 0) for g in _BVF_GAMMES)
-            if obj_bvf > 0 and vol_bvf / obj_bvf >= 0.90:
+            if obj_bvf > 0 and vol_bvf / obj_bvf >= 0.85:
                 ca_prime_by_emp[emp_id] += sum(raw_g.get(g, 0) for g in _BVF_GAMMES)
         # Farine
         if obj_g.get(Gamme.FARINE, 0) > 0:
             taux_f = vol_g.get(Gamme.FARINE, 0) / obj_g[Gamme.FARINE]
-            if taux_f >= 0.90:
+            if taux_f >= 0.85:
                 ca_prime_by_emp[emp_id] += raw_g.get(Gamme.FARINE, 0)
         # Pâtes
         if obj_g.get(Gamme.PATES, 0) > 0:
             taux_p = vol_g.get(Gamme.PATES, 0) / obj_g[Gamme.PATES]
-            if taux_p >= 0.90:
+            if taux_p >= 0.85:
                 ca_prime_by_emp[emp_id] += raw_g.get(Gamme.PATES, 0)
         # ALL (fallback)
         if obj_g.get(Gamme.ALL, 0) > 0:
             vol_tot = sum(vol_g.values())
-            if obj_g[Gamme.ALL] > 0 and vol_tot / obj_g[Gamme.ALL] >= 0.90:
+            if obj_g[Gamme.ALL] > 0 and vol_tot / obj_g[Gamme.ALL] >= 0.85:
                 ca_prime_by_emp[emp_id] = ca_by_emp[emp_id]
 
     # Regroupement par rôle et par région

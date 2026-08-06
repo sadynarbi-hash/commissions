@@ -82,9 +82,8 @@ PALIERS_RESP_TECH_FP = [(0.90, 175_000), (1.00, 225_000), (1.15, 300_000)]
 PALIERS_SV_PATES = [(0.90, 90_000), (1.00, 175_000), (1.15, 210_000)]
 PALIERS_SV_AUTRES = [(0.90, 60_000), (1.00, 75_000), (1.15, 90_000)]
 
-# V12 — Commerciaux : prime quantitative en % du CA (montant facturé)
-TAUX_COMMERCIAL_BVF   = [(0.90, 0.0005), (1.00, 0.0010), (1.15, 0.0020)]  # 0,05% / 0,10% / 0,20%
-TAUX_COMMERCIAL_PATES = [(0.90, 0.0020), (1.00, 0.0035), (1.15, 0.0040)]  # 0,20% / 0,35% / 0,40%
+# V12 update — Commerciaux : prime quantitative unifiée toutes gammes (Pâtes, Farine, BVF)
+TAUX_COMMERCIAL = [(0.85, 0.0015), (1.00, 0.0020), (1.15, 0.0025)]  # 0,15% / 0,20% / 0,25%
 
 
 def _palier(taux: float, paliers: list[tuple]) -> float:
@@ -321,19 +320,18 @@ def _calc_commercial(r: BonusResult, vol_real, vol_obj,
     taux = _taux(vol_real, vol_obj)
     r.taux_atteinte_global = round(taux * 100, 2)
 
-    # V12 : commission par gamme — chaque gamme a son propre taux d'atteinte et palier
+    # V12 update : taux unifié 0,15%/0,20%/0,25% (seuil 85%) pour toutes les gammes
     comm = 0.0
     if obj_pates > 0:
-        comm += ca_pates_m * _palier(_taux(vol_pates, obj_pates), TAUX_COMMERCIAL_PATES)
+        comm += ca_pates_m * _palier(_taux(vol_pates, obj_pates), TAUX_COMMERCIAL)
     if obj_farine > 0:
-        comm += ca_farine_m * _palier(_taux(vol_farine, obj_farine), TAUX_COMMERCIAL_BVF)
+        comm += ca_farine_m * _palier(_taux(vol_farine, obj_farine), TAUX_COMMERCIAL)
     if obj_bvf > 0:
-        comm += ca_bvf_m * _palier(_taux(vol_bvf, obj_bvf), TAUX_COMMERCIAL_BVF)
+        comm += ca_bvf_m * _palier(_taux(vol_bvf, obj_bvf), TAUX_COMMERCIAL)
     if obj_pates == 0 and obj_farine == 0 and obj_bvf == 0:
-        # Fallback obj_all : global taux sur CA total
+        # Fallback obj_all : taux global sur CA total
         ca_total = ca_pates_m + ca_farine_m + ca_bvf_m
-        paliers = TAUX_COMMERCIAL_PATES if vol_pates > (vol_farine + vol_bvf) else TAUX_COMMERCIAL_BVF
-        comm = ca_total * _palier(taux, paliers)
+        comm = ca_total * _palier(taux, TAUX_COMMERCIAL)
     r.prime_quantitative = round(comm, 0)
 
     qualif = taux >= 0.90
