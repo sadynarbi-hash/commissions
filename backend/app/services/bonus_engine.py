@@ -83,7 +83,7 @@ PALIERS_SV_PATES = [(0.90, 90_000), (1.00, 175_000), (1.15, 210_000)]
 PALIERS_SV_AUTRES = [(0.90, 60_000), (1.00, 75_000), (1.15, 90_000)]
 
 # V12 update — Commerciaux : prime quantitative unifiée toutes gammes (Pâtes, Farine, BVF)
-TAUX_COMMERCIAL = [(0.85, 0.0015), (1.00, 0.0020), (1.15, 0.0025)]  # 0,15% / 0,20% / 0,25%
+TAUX_COMMERCIAL = [(0.80, 0.0015), (1.00, 0.0020), (1.15, 0.0025)]  # 0,15% / 0,20% / 0,25%
 
 
 def _palier(taux: float, paliers: list[tuple]) -> float:
