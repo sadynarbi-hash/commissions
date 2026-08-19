@@ -60,6 +60,23 @@ export interface BonusQualDetail {
   eligible: boolean
 }
 
+export interface CommissionGamme {
+  gamme: string
+  vol_realise: number
+  objectif: number
+  taux_atteinte: number
+  ca_m: number
+  taux_commission_pct: number
+  commission: number
+}
+
+export interface BonusDetailJson {
+  commission_par_gamme?: CommissionGamme[]
+  taux_global?: number
+  taux_pates?: number
+  taux_autres?: number
+}
+
 export interface Bonus {
   id: number
   employee_id: number
@@ -80,6 +97,7 @@ export interface Bonus {
   observations?: string
   calcule_le: string
   qual_details: BonusQualDetail[]
+  detail_json?: BonusDetailJson
 }
 
 export interface BonusPeriod {

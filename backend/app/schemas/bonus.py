@@ -46,6 +46,7 @@ class BonusRead(BaseModel):
     observations: Optional[str] = None
     calcule_le: datetime
     qual_details: list[BonusQualDetailRead] = []
+    detail_json: Optional[Any] = None
     model_config = {"from_attributes": True}
 
 

@@ -39,6 +39,8 @@ class BonusResult:
     qualitative_eligible: bool = False
 
     criteria: list[QualCriterion] = field(default_factory=list)
+    # Détail commission par gamme (COMMERCIAL uniquement)
+    commission_par_gamme: list[dict] = field(default_factory=list)
 
     @property
     def total(self) -> float:
@@ -60,6 +62,7 @@ class BonusResult:
             "commission": self.commission_nouvelles_affaires,
             "total": self.total,
             "qualitative_eligible": self.qualitative_eligible,
+            "commission_par_gamme": self.commission_par_gamme,
             "criteria": [
                 {
                     "code": c.code,
@@ -333,22 +336,53 @@ def _calc_commercial(r: BonusResult, vol_real, vol_obj,
 
     # V12 update : chaque gamme a son propre taux d'atteinte et commission indépendante
     comm = 0.0
+    details_gamme: list[dict] = []
+
+    def _gamme_detail(libelle: str, vol: float, obj: float, ca: float) -> float:
+        """Calcule la commission pour une gamme, ajoute le détail, retourne le montant."""
+        t = _taux(vol, obj)
+        tx = _palier(t, TAUX_COMMERCIAL)
+        montant = round(ca * tx, 0)
+        details_gamme.append({
+            "gamme": libelle,
+            "vol_realise": round(vol, 3),
+            "objectif": round(obj, 3),
+            "taux_atteinte": round(t * 100, 1),
+            "ca_m": round(ca, 0),
+            "taux_commission_pct": round(tx * 100, 4),
+            "commission": montant,
+        })
+        return montant
+
     if obj_pates > 0:
-        comm += ca_pates_m    * _palier(_taux(vol_pates,    obj_pates),    TAUX_COMMERCIAL)
+        comm += _gamme_detail("Pâtes", vol_pates, obj_pates, ca_pates_m)
     if obj_farine > 0:
-        comm += ca_farine_m   * _palier(_taux(vol_farine,   obj_farine),   TAUX_COMMERCIAL)
+        comm += _gamme_detail("Farine", vol_farine, obj_farine, ca_farine_m)
     if obj_betail > 0:
-        comm += ca_betail_m   * _palier(_taux(vol_betail,   obj_betail),   TAUX_COMMERCIAL)
+        comm += _gamme_detail("Bétail", vol_betail, obj_betail, ca_betail_m)
     if obj_volaille > 0:
-        comm += ca_volaille_m * _palier(_taux(vol_volaille, obj_volaille), TAUX_COMMERCIAL)
+        comm += _gamme_detail("Volaille", vol_volaille, obj_volaille, ca_volaille_m)
     # Fallback : BVF agrégé si objectifs non splitté bétail/volaille
     if obj_bvf > 0 and obj_betail == 0 and obj_volaille == 0:
-        comm += ca_bvf_m * _palier(_taux(vol_bvf, obj_bvf), TAUX_COMMERCIAL)
+        comm += _gamme_detail("BVF (agrégé)", vol_bvf, obj_bvf, ca_bvf_m)
     if obj_pates == 0 and obj_farine == 0 and obj_betail == 0 and obj_volaille == 0 and obj_bvf == 0:
         # Fallback obj_all : taux global sur CA total
         ca_total = ca_pates_m + ca_farine_m + ca_bvf_m
-        comm = ca_total * _palier(taux, TAUX_COMMERCIAL)
+        t_all = taux
+        tx_all = _palier(t_all, TAUX_COMMERCIAL)
+        comm = round(ca_total * tx_all, 0)
+        details_gamme.append({
+            "gamme": "Toutes gammes",
+            "vol_realise": round(vol_real, 3),
+            "objectif": round(vol_obj, 3),
+            "taux_atteinte": round(t_all * 100, 1),
+            "ca_m": round(ca_total, 0),
+            "taux_commission_pct": round(tx_all * 100, 4),
+            "commission": comm,
+        })
+
     r.prime_quantitative = round(comm, 0)
+    r.commission_par_gamme = details_gamme
 
     qualif = taux >= 0.90
     r.qualitative_eligible = qualif

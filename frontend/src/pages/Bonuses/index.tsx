@@ -14,7 +14,7 @@ import {
   getBonuses, calculateBonuses, validateBonuses,
   getEmployees, exportBonusesDetail, downloadPV, downloadRecap,
 } from '../../api/client'
-import type { Bonus, Employee } from '../../types'
+import type { Bonus, CommissionGamme, Employee } from '../../types'
 import { TYPE_POSTE_LABELS } from '../../types'
 
 const { Title } = Typography
@@ -410,6 +410,67 @@ export default function Bonuses() {
                     {formatFCFA(selected.prime_quantitative)}
                   </span>
                 </Descriptions.Item>
+              </Descriptions>
+
+              {/* ── Détail commission par gamme (COMMERCIAL) ── */}
+              {(() => {
+                const gammes: CommissionGamme[] = selected.detail_json?.commission_par_gamme ?? []
+                if (gammes.length === 0) return null
+
+                const PALIER_COLOR = (taux: number) =>
+                  taux >= 115 ? '#52c41a' : taux >= 100 ? '#1890ff' : taux >= 80 ? '#fa8c16' : '#ff4d4f'
+
+                return (
+                  <>
+                    <Divider style={{ margin: '12px 0' }}>Détail commission quantitative par gamme</Divider>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: '#f5f5f5' }}>
+                            {['Gamme', 'Objectif (T)', 'Réal. (T)', 'Taux', 'CA Mois (FCFA)', 'Tx comm.', 'Commission'].map(h => (
+                              <th key={h} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '2px solid #e0e0e0', whiteSpace: 'nowrap', fontWeight: 600, color: '#555' }}>
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gammes.map((g, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                              <td style={{ padding: '6px 8px', fontWeight: 600, color: '#1B5E20', whiteSpace: 'nowrap' }}>{g.gamme}</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>{g.objectif.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>{g.vol_realise.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                <Tag color={g.taux_atteinte >= 115 ? 'green' : g.taux_atteinte >= 100 ? 'blue' : g.taux_atteinte >= 80 ? 'orange' : 'red'}
+                                     style={{ fontWeight: 700, fontSize: 12 }}>
+                                  {g.taux_atteinte.toFixed(1)}%
+                                </Tag>
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatFCFA(g.ca_m)}</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', color: PALIER_COLOR(g.taux_atteinte), fontWeight: 600 }}>
+                                {g.taux_commission_pct.toFixed(2)}%
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#1B5E20', whiteSpace: 'nowrap' }}>
+                                {formatFCFA(g.commission)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ background: '#f0f7f0', borderTop: '2px solid #a5d6a7' }}>
+                            <td colSpan={6} style={{ padding: '6px 8px', fontWeight: 700, color: '#1B5E20' }}>TOTAL</td>
+                            <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#1B5E20', whiteSpace: 'nowrap' }}>
+                              {formatFCFA(gammes.reduce((s, g) => s + g.commission, 0))}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </>
+                )
+              })()}
+
+              <Descriptions column={1} size="small" bordered style={{ marginTop: 12 }}>
                 <Descriptions.Item label="Commission qualitative">
                   <span style={{ color: selected.prime_qualitative > 0 ? '#52c41a' : '#aaa', fontWeight: 600 }}>
                     {formatFCFA(selected.prime_qualitative)}
