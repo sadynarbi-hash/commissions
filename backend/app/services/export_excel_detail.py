@@ -95,21 +95,24 @@ COL_TX_FAR   = 6
 COL_OBJ_PAT  = 7
 COL_REA_PAT  = 8
 COL_TX_PAT   = 9
-COL_OBJ_BVF  = 10
-COL_REA_BVF  = 11
-COL_TX_BVF   = 12
-COL_OBJ_TOT  = 13
-COL_REA_TOT  = 14
-COL_TX_TOT   = 15
-COL_CA         = 16  # CA mois M (base prime quantitative)
-COL_CA_PRIME   = 17  # CA Primé (gammes avec taux ≥ 80%)
-COL_PRIME_FX   = 18  # Prime fixe (partie de la prime quanti)
-COL_PRIME_PERF = 19  # Prime performance = CA_M × taux_commission
-COL_COMM_NA    = 20  # Commission nouvelles affaires (0.5%)
-COL_TOT_QANT   = 21  # Total Quanti = Fixe + Perf + Commission NA
-COL_TX_RECOUV  = 22  # Taux recouvrement M-1 (%)
-COL_NB_VISITES = 23  # Nombre de visites réalisées
-COL_CRIT_START = 24
+COL_OBJ_BET  = 10
+COL_REA_BET  = 11
+COL_TX_BET   = 12
+COL_OBJ_VOL  = 13
+COL_REA_VOL  = 14
+COL_TX_VOL   = 15
+COL_OBJ_TOT  = 16
+COL_REA_TOT  = 17
+COL_TX_TOT   = 18
+COL_CA         = 19  # CA mois M (base prime quantitative)
+COL_CA_PRIME   = 20  # CA Primé (gammes avec taux ≥ 80%)
+COL_PRIME_FX   = 21  # Prime fixe (partie de la prime quanti)
+COL_PRIME_PERF = 22  # Prime performance = CA_M × taux_commission
+COL_COMM_NA    = 23  # Commission nouvelles affaires (0.5%)
+COL_TOT_QANT   = 24  # Total Quanti = Fixe + Perf + Commission NA
+COL_TX_RECOUV  = 25  # Taux recouvrement M-1 (%)
+COL_NB_VISITES = 26  # Nombre de visites réalisées
+COL_CRIT_START = 27
 COL_CRIT_END   = COL_CRIT_START + len(CRITERIA_MAP) - 1
 COL_TOT_QUAL   = COL_CRIT_END + 1
 COL_TOTAL      = COL_TOT_QUAL + 1
@@ -119,7 +122,8 @@ COL_WIDTHS = {
     COL_NOM: 22, COL_ROLE: 13, COL_ZONE: 10,
     COL_OBJ_FAR: 9, COL_REA_FAR: 9, COL_TX_FAR: 8,
     COL_OBJ_PAT: 9, COL_REA_PAT: 9, COL_TX_PAT: 8,
-    COL_OBJ_BVF: 9, COL_REA_BVF: 9, COL_TX_BVF: 8,
+    COL_OBJ_BET: 9, COL_REA_BET: 9, COL_TX_BET: 8,
+    COL_OBJ_VOL: 9, COL_REA_VOL: 9, COL_TX_VOL: 8,
     COL_OBJ_TOT: 9, COL_REA_TOT: 9, COL_TX_TOT: 8,
     COL_CA: 14, COL_CA_PRIME: 14,
     COL_PRIME_FX: 11, COL_PRIME_PERF: 13, COL_COMM_NA: 13, COL_TOT_QANT: 13,
@@ -185,9 +189,12 @@ def _write_headers(ws, mois_label: str, periode: str):
         (COL_OBJ_PAT,  "Obj.\nPâtes (T)"),
         (COL_REA_PAT,  "Réal.\nPâtes (T)"),
         (COL_TX_PAT,   "Taux\nPâtes %"),
-        (COL_OBJ_BVF,  "Obj.\nBVF (T)"),
-        (COL_REA_BVF,  "Réal.\nBVF (T)"),
-        (COL_TX_BVF,   "Taux\nBVF %"),
+        (COL_OBJ_BET,  "Obj.\nBétail (T)"),
+        (COL_REA_BET,  "Réal.\nBétail (T)"),
+        (COL_TX_BET,   "Taux\nBétail %"),
+        (COL_OBJ_VOL,  "Obj.\nVolaille (T)"),
+        (COL_REA_VOL,  "Réal.\nVolaille (T)"),
+        (COL_TX_VOL,   "Taux\nVolaille %"),
         (COL_OBJ_TOT,  "Obj.\nTotal (T)"),
         (COL_REA_TOT,  "Réal.\nTotal (T)"),
         (COL_TX_TOT,   "Taux\nTotal %"),
@@ -251,8 +258,18 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
     obj_far = gobj(Gamme.FARINE)
     vol_pat = gvol(Gamme.PATES)
     obj_pat = gobj(Gamme.PATES)
-    vol_bvf = gvol(Gamme.BETAIL) + gvol(Gamme.VOLAILLE) + gvol(Gamme.BVF)
-    obj_bvf = gobj(Gamme.BETAIL) + gobj(Gamme.VOLAILLE) + gobj(Gamme.BVF)
+    vol_bet      = gvol(Gamme.BETAIL)
+    obj_bet      = gobj(Gamme.BETAIL)
+    vol_vol      = gvol(Gamme.VOLAILLE)
+    obj_vol      = gobj(Gamme.VOLAILLE)
+    vol_bvf_agg  = gvol(Gamme.BVF)
+    obj_bvf_agg  = gobj(Gamme.BVF)
+    # Fallback BVF agrégé : si pas d'objectifs séparés, regrouper dans colonne Bétail
+    if obj_bvf_agg > 0 and obj_bet == 0 and obj_vol == 0:
+        obj_bet = obj_bvf_agg
+        vol_bet = vol_bet + vol_vol + vol_bvf_agg
+        obj_vol = 0.0
+        vol_vol = 0.0
     vol_tot = float(bonus.volume_realise or 0)
     obj_tot = float(bonus.volume_objectif or 0)
 
@@ -290,9 +307,12 @@ def _write_emp_row(ws, row: int, bonus: Bonus,
     write(COL_OBJ_PAT, obj_pat or None, "0.0")
     write(COL_REA_PAT, vol_pat or None, "0.0")
     write_taux(COL_TX_PAT, gtaux(vol_pat, obj_pat))
-    write(COL_OBJ_BVF, obj_bvf or None, "0.0")
-    write(COL_REA_BVF, vol_bvf or None, "0.0")
-    write_taux(COL_TX_BVF, gtaux(vol_bvf, obj_bvf))
+    write(COL_OBJ_BET, obj_bet or None, "0.0")
+    write(COL_REA_BET, vol_bet or None, "0.0")
+    write_taux(COL_TX_BET, gtaux(vol_bet, obj_bet))
+    write(COL_OBJ_VOL, obj_vol or None, "0.0")
+    write(COL_REA_VOL, vol_vol or None, "0.0")
+    write_taux(COL_TX_VOL, gtaux(vol_vol, obj_vol))
     write(COL_OBJ_TOT, obj_tot or None, "0.0")
     write(COL_REA_TOT, vol_tot or None, "0.0")
     taux_tot = float(bonus.taux_atteinte_global) if bonus.taux_atteinte_global else gtaux(vol_tot, obj_tot)
