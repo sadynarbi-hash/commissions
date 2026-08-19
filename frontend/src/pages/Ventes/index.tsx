@@ -61,6 +61,27 @@ export default function Ventes() {
     }
   }, [rows, employeeId, totaux])
 
+  // Rows par gamme pour un commercial sélectionné
+  const rowsParGamme = useMemo(() => {
+    if (!employeeId || rows.length === 0) return []
+    const row = rows[0]
+    const parGamme: Record<string, { tonnage: number; ca_facture: number }> = row.par_gamme ?? {}
+    const objParGamme: Record<string, number> = row.obj_par_gamme ?? {}
+    // Toutes les gammes présentes (ventes + objectifs)
+    const gammes = new Set([...Object.keys(parGamme), ...Object.keys(objParGamme)])
+    return Array.from(gammes)
+      .filter(g => g !== 'NEGOCIATION' && g !== 'NEGOCE')
+      .sort()
+      .map(g => ({
+        gamme:     g,
+        tonnage:   parGamme[g]?.tonnage    ?? 0,
+        objectif:  objParGamme[g]          ?? 0,
+        ca_facture: parGamme[g]?.ca_facture ?? 0,
+        ca_recouvre: 0,  // pas disponible par gamme au niveau SaleData
+      }))
+      .filter(g => g.tonnage > 0 || g.objectif > 0)
+  }, [rows, employeeId])
+
   const openDrawer = (row: any) => {
     setDrawerRow(row)
     setClientsData(null)
@@ -135,7 +156,8 @@ export default function Ventes() {
 
       <div>
 
-        {/* ── Tableau ── */}
+        {/* ── Tableau global (pas de filtre commercial) ── */}
+        {!employeeId && (
         <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -177,73 +199,44 @@ export default function Ventes() {
                         background: '#e8f5e9', color: '#1B5E20', border: '1px solid #a5d6a7',
                       }}>{r.zone}</Tag>
                     </td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 600 }}>
-                      {fmt(r.tonnage)}
-                    </td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 600 }}>{fmt(r.tonnage)}</td>
                     <td style={{ padding: '9px 14px', textAlign: 'right', color: '#888' }}>
                       {r.objectif > 0 ? fmt(r.objectif) : <span style={{ color: '#ccc' }}>—</span>}
                     </td>
                     <td style={{ padding: '9px 14px', textAlign: 'right' }}>
                       {txObj !== null ? (
                         <span style={{
-                          display: 'inline-block',
-                          padding: '2px 8px', borderRadius: 12,
+                          display: 'inline-block', padding: '2px 8px', borderRadius: 12,
                           fontWeight: 700, fontSize: 12,
                           background: txObj >= 100 ? '#e8f5e9' : txObj >= 90 ? '#fff8e1' : '#ffebee',
-                          color: TX_COLOR(txObj),
-                          border: `1px solid ${TX_COLOR(txObj)}40`,
-                        }}>
-                          {fmtPct(txObj)}
-                        </span>
+                          color: TX_COLOR(txObj), border: `1px solid ${TX_COLOR(txObj)}40`,
+                        }}>{fmtPct(txObj)}</span>
                       ) : <span style={{ color: '#ccc' }}>—</span>}
                     </td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: '#1565C0', fontWeight: 600 }}>
-                      {fmt(r.ca_facture)}
-                    </td>
-                    <td style={{ padding: '9px 14px', textAlign: 'right', color: '#2E7D32', fontWeight: 600 }}>
-                      {fmt(r.ca_recouvre)}
-                    </td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: '#1565C0', fontWeight: 600 }}>{fmt(r.ca_facture)}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: '#2E7D32', fontWeight: 600 }}>{fmt(r.ca_recouvre)}</td>
                     <td style={{ padding: '9px 14px', textAlign: 'right' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: TX_COLOR(tx) }}>
-                        {fmtPct(tx)}
-                      </span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: TX_COLOR(tx) }}>{fmtPct(tx)}</span>
                     </td>
                   </tr>
                 )
               })}
-
               {/* Ligne total */}
               {!loading && totauxFiltres && rows.length > 0 && (() => {
                 const totalObj   = rows.reduce((s: number, r: any) => s + (r.objectif || 0), 0)
                 const txObjTotal = totalObj > 0 ? totauxFiltres.tonnage / totalObj * 100 : null
                 return (
                   <tr style={{ background: '#e8f5e9', borderTop: '2px solid #a5d6a7' }}>
-                    <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 800, fontSize: 12, color: '#1B5E20', letterSpacing: 0.5 }}>
-                      TOTAL
-                    </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#1B5E20' }}>
-                      {fmt(totauxFiltres.tonnage)}
-                    </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#888' }}>
-                      {totalObj > 0 ? fmt(totalObj) : '—'}
-                    </td>
+                    <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 800, fontSize: 12, color: '#1B5E20', letterSpacing: 0.5 }}>TOTAL</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#1B5E20' }}>{fmt(totauxFiltres.tonnage)}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#888' }}>{totalObj > 0 ? fmt(totalObj) : '—'}</td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                      {txObjTotal !== null ? (
-                        <span style={{ fontWeight: 800, fontSize: 14, color: TX_COLOR(txObjTotal) }}>
-                          {fmtPct(txObjTotal)}
-                        </span>
-                      ) : '—'}
+                      {txObjTotal !== null ? <span style={{ fontWeight: 800, fontSize: 14, color: TX_COLOR(txObjTotal) }}>{fmtPct(txObjTotal)}</span> : '—'}
                     </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#1565C0' }}>
-                      {fmt(totauxFiltres.ca_facture)}
-                    </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#2E7D32' }}>
-                      {fmt(totauxFiltres.ca_recouvre)}
-                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#1565C0' }}>{fmt(totauxFiltres.ca_facture)}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#2E7D32' }}>{fmt(totauxFiltres.ca_recouvre)}</td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                      <span style={{ fontWeight: 800, fontSize: 14, color: TX_COLOR(totauxFiltres.tx_recouvrement) }}>
-                        {fmtPct(totauxFiltres.tx_recouvrement)}
-                      </span>
+                      <span style={{ fontWeight: 800, fontSize: 14, color: TX_COLOR(totauxFiltres.tx_recouvrement) }}>{fmtPct(totauxFiltres.tx_recouvrement)}</span>
                     </td>
                   </tr>
                 )
@@ -251,6 +244,135 @@ export default function Ventes() {
             </tbody>
           </table>
         </div>
+        )}
+
+        {/* ── Vue par gamme (commercial sélectionné) ── */}
+        {employeeId && rows.length > 0 && (() => {
+          const row = rows[0]
+          const txGlobal = row.objectif > 0 ? row.tonnage / row.objectif * 100 : null
+          const txCA     = row.ca_facture > 0 ? row.ca_recouvre / row.ca_facture * 100 : 0
+
+          const GAMME_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+            FARINE:   { bg: '#FFF8E1', text: '#F57F17', label: '🌾 Farine' },
+            PATES:    { bg: '#E3F2FD', text: '#1565C0', label: '🍝 Pâtes' },
+            BETAIL:   { bg: '#F3E5F5', text: '#6A1B9A', label: '🐄 Bétail' },
+            VOLAILLE: { bg: '#E8F5E9', text: '#2E7D32', label: '🐔 Volaille' },
+            BVF:      { bg: '#FCE4EC', text: '#880E4F', label: '🐾 BVF' },
+          }
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Bandeau résumé global */}
+              <div style={{
+                background: '#fff', borderRadius: 10, padding: '14px 20px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+                display: 'flex', gap: 32, alignItems: 'center', flexWrap: 'wrap',
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>Commercial</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1B5E20' }}>{row.nom}</div>
+                  <Tag style={{ marginTop: 4, fontSize: 10, fontWeight: 700, background: '#e8f5e9', color: '#1B5E20', border: '1px solid #a5d6a7' }}>{row.zone}</Tag>
+                </div>
+                {[
+                  { label: 'Tonnage global', value: fmt(row.tonnage) + ' T', color: '#1B5E20' },
+                  { label: 'Objectif global', value: row.objectif > 0 ? fmt(row.objectif) + ' T' : '—', color: '#888' },
+                  { label: '% Objectif', value: txGlobal !== null ? fmtPct(txGlobal) : '—', color: txGlobal !== null ? TX_COLOR(txGlobal) : '#aaa' },
+                  { label: 'CA Livré', value: fmt(row.ca_facture) + ' F', color: '#1565C0' },
+                  { label: 'CA Recouvré', value: fmt(row.ca_recouvre) + ' F', color: '#2E7D32' },
+                  { label: 'Tx Recouv.', value: fmtPct(txCA), color: TX_COLOR(txCA) },
+                ].map(k => (
+                  <div key={k.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 10, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{k.label}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: k.color }}>{k.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tableau par gamme */}
+              <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f1f8e9' }}>
+                      {['Gamme', 'Tonnage Réalisé', 'Objectif', '% Objectif', 'CA Livré'].map(h => (
+                        <th key={h} style={{
+                          padding: '10px 16px', textAlign: h === 'Gamme' ? 'left' : 'right',
+                          fontSize: 11, fontWeight: 700, color: '#1B5E20',
+                          letterSpacing: 0.5, textTransform: 'uppercase',
+                          borderBottom: '1.5px solid #c8e6c9',
+                        }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rowsParGamme.length === 0 && (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>Aucune donnée par gamme</td></tr>
+                    )}
+                    {rowsParGamme.map((g, i) => {
+                      const txObj = g.objectif > 0 ? g.tonnage / g.objectif * 100 : null
+                      const gc    = GAMME_COLORS[g.gamme] ?? { bg: '#fafafa', text: '#555', label: g.gamme }
+                      const isEven = i % 2 === 0
+                      return (
+                        <tr key={g.gamme} style={{ background: isEven ? '#fff' : '#fafff8', borderBottom: '1px solid #e8f5e9' }}>
+                          <td style={{ padding: '10px 16px' }}>
+                            <span style={{
+                              display: 'inline-block', padding: '3px 12px', borderRadius: 14,
+                              fontSize: 12, fontWeight: 700,
+                              background: gc.bg, color: gc.text,
+                            }}>{gc.label}</span>
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: '#222' }}>
+                            {fmt(g.tonnage)} T
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#888', fontSize: 13 }}>
+                            {g.objectif > 0 ? fmt(g.objectif) + ' T' : <span style={{ color: '#ccc' }}>—</span>}
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                            {txObj !== null ? (
+                              <span style={{
+                                display: 'inline-block', padding: '3px 12px', borderRadius: 12,
+                                fontWeight: 800, fontSize: 13,
+                                background: txObj >= 100 ? '#e8f5e9' : txObj >= 90 ? '#fff8e1' : txObj >= 80 ? '#fff3e0' : '#ffebee',
+                                color: TX_COLOR(txObj), border: `1px solid ${TX_COLOR(txObj)}40`,
+                              }}>{fmtPct(txObj)}</span>
+                            ) : <span style={{ color: '#ccc' }}>—</span>}
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', color: '#1565C0', fontWeight: 600, fontSize: 13 }}>
+                            {fmt(g.ca_facture)} F
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {/* Ligne total */}
+                    {rowsParGamme.length > 0 && (() => {
+                      const totT  = rowsParGamme.reduce((s, g) => s + g.tonnage, 0)
+                      const totO  = rowsParGamme.reduce((s, g) => s + g.objectif, 0)
+                      const totCA = rowsParGamme.reduce((s, g) => s + g.ca_facture, 0)
+                      const txObjTot = totO > 0 ? totT / totO * 100 : null
+                      return (
+                        <tr style={{ background: '#e8f5e9', borderTop: '2px solid #a5d6a7' }}>
+                          <td style={{ padding: '10px 16px', fontWeight: 800, color: '#1B5E20', fontSize: 12, letterSpacing: 0.5 }}>TOTAL</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#1B5E20' }}>{fmt(totT)} T</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#888' }}>{totO > 0 ? fmt(totO) + ' T' : '—'}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                            {txObjTot !== null ? <span style={{ fontWeight: 800, fontSize: 14, color: TX_COLOR(txObjTot) }}>{fmtPct(txObjTot)}</span> : '—'}
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, fontSize: 14, color: '#1565C0' }}>{fmt(totCA)} F</td>
+                        </tr>
+                      )
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Bouton voir détail clients */}
+              <div style={{ textAlign: 'right' }}>
+                <Button onClick={() => openDrawer(row)} style={{ color: '#1B5E20', borderColor: '#1B5E20' }}>
+                  Voir le détail par client →
+                </Button>
+              </div>
+            </div>
+          )
+        })()}
 
       </div>
 

@@ -167,14 +167,20 @@ def get_ventes(
     employes  = {e.id: e for e in db.query(Employee).all()}
     regions   = {r.id: r for r in db.query(Region).all()}
 
-    # Objectifs de la période (tous les gammes ou filtré)
-    obj_q = db.query(Objective).filter(Objective.periode == periode) if periode else db.query(Objective)
-    if gamme:
-        obj_q = obj_q.filter(Objective.gamme == gamme)
-    # objectif total par employé (somme des gammes ou gamme filtrée)
+    # Objectifs de la période — TOUTES gammes (pour breakdown par gamme)
+    obj_q_all = db.query(Objective).filter(Objective.periode == periode) if periode else db.query(Objective)
     obj_par_emp: dict[int, float] = {}
-    for o in obj_q.all():
-        obj_par_emp[o.employee_id] = obj_par_emp.get(o.employee_id, 0) + float(o.objectif_volume or 0)
+    obj_par_emp_gamme: dict[int, dict[str, float]] = {}
+    for o in obj_q_all.all():
+        g_val = o.gamme.value if hasattr(o.gamme, "value") else str(o.gamme)
+        vol   = float(o.objectif_volume or 0)
+        # Total par employé (avec filtre gamme si actif)
+        if not gamme or g_val == gamme:
+            obj_par_emp[o.employee_id] = obj_par_emp.get(o.employee_id, 0) + vol
+        # Par gamme (toujours sans filtre pour le drill-down)
+        if o.employee_id not in obj_par_emp_gamme:
+            obj_par_emp_gamme[o.employee_id] = {}
+        obj_par_emp_gamme[o.employee_id][g_val] = obj_par_emp_gamme[o.employee_id].get(g_val, 0) + vol
 
     # Agrégation par employé
     agg: dict[int, dict] = {}
@@ -200,6 +206,7 @@ def get_ventes(
                 "ca_facture":     0.0,
                 "ca_recouvre":    0.0,
                 "par_gamme":      {},
+                "obj_par_gamme":  obj_par_emp_gamme.get(eid, {}),
             }
         agg[eid]["tonnage"]     += float(s.volume or 0)
         agg[eid]["ca_facture"]  += float(s.montant_ht or 0)
