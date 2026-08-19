@@ -95,15 +95,19 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
             return True
         return obj_sums.get(gamme, 0) > 0
 
-    vol_total   = sum(float(s.volume)    for s in sales if _has_obj(s.gamme))
-    vol_pates   = sum(float(s.volume)    for s in sales if s.gamme == Gamme.PATES)
-    vol_farine  = sum(float(s.volume)    for s in sales if s.gamme == Gamme.FARINE and _has_obj(s.gamme))
-    vol_bvf_r   = sum(float(s.volume)    for s in sales if s.gamme in _gammes_bvf and _has_obj(s.gamme))
-    vol_autres  = vol_total - vol_pates
-    mnt_facture = sum(float(s.montant_ht) for s in sales if _has_obj(s.gamme))
-    ca_pates_m  = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.PATES)
-    ca_farine_m = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.FARINE and _has_obj(s.gamme))
-    ca_bvf_m    = sum(float(s.montant_ht) for s in sales if s.gamme in _gammes_bvf and _has_obj(s.gamme))
+    vol_total    = sum(float(s.volume)    for s in sales if _has_obj(s.gamme))
+    vol_pates    = sum(float(s.volume)    for s in sales if s.gamme == Gamme.PATES)
+    vol_farine   = sum(float(s.volume)    for s in sales if s.gamme == Gamme.FARINE and _has_obj(s.gamme))
+    vol_betail   = sum(float(s.volume)    for s in sales if s.gamme == Gamme.BETAIL and obj_sums.get(Gamme.BETAIL, 0) > 0)
+    vol_volaille = sum(float(s.volume)    for s in sales if s.gamme == Gamme.VOLAILLE and obj_sums.get(Gamme.VOLAILLE, 0) > 0)
+    vol_bvf_r    = sum(float(s.volume)    for s in sales if s.gamme in _gammes_bvf and _has_obj(s.gamme))
+    vol_autres   = vol_total - vol_pates
+    mnt_facture  = sum(float(s.montant_ht) for s in sales if _has_obj(s.gamme))
+    ca_pates_m   = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.PATES)
+    ca_farine_m  = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.FARINE and _has_obj(s.gamme))
+    ca_betail_m  = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.BETAIL and obj_sums.get(Gamme.BETAIL, 0) > 0)
+    ca_volaille_m = sum(float(s.montant_ht) for s in sales if s.gamme == Gamme.VOLAILLE and obj_sums.get(Gamme.VOLAILLE, 0) > 0)
+    ca_bvf_m     = sum(float(s.montant_ht) for s in sales if s.gamme in _gammes_bvf and _has_obj(s.gamme))
 
     # SV fallback : si les objectifs par gamme sont absents mais obj_all existe,
     # répartir obj_all proportionnellement au réalisé pâtes/autres.
@@ -315,6 +319,12 @@ def _build_bonus_inputs(employee: Employee, periode: str, db: Session) -> dict:
         vol_farine_realise=vol_farine,
         objectif_farine=obj_farine,
         ca_farine_m=ca_farine_m,
+        vol_betail_realise=vol_betail,
+        objectif_betail=obj_sums.get(Gamme.BETAIL, 0),
+        ca_betail_m=ca_betail_m,
+        vol_volaille_realise=vol_volaille,
+        objectif_volaille=obj_sums.get(Gamme.VOLAILLE, 0),
+        ca_volaille_m=ca_volaille_m,
         vol_bvf_realise=vol_bvf_r,
         objectif_bvf=obj_bvf,
         ca_bvf_m=ca_bvf_m,

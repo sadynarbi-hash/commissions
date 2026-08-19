@@ -514,12 +514,19 @@ def generate_detail_excel(db: Session, periode: str) -> bytes:
         obj_g = obj_by_emp_gamme[emp_id]
         vol_g = vol_by_emp_gamme[emp_id]
         raw_g = raw_ca_by_emp_gamme[emp_id]
-        has_bvf_obj = any(obj_g.get(g, 0) > 0 for g in _BVF_GAMMES)
-        # BVF group (taux agrégé)
-        if has_bvf_obj:
+        # Bétail — taux individuel
+        if obj_g.get(Gamme.BETAIL, 0) > 0:
+            if vol_g.get(Gamme.BETAIL, 0) / obj_g[Gamme.BETAIL] >= 0.80:
+                ca_prime_by_emp[emp_id] += raw_g.get(Gamme.BETAIL, 0)
+        # Volaille — taux individuel
+        if obj_g.get(Gamme.VOLAILLE, 0) > 0:
+            if vol_g.get(Gamme.VOLAILLE, 0) / obj_g[Gamme.VOLAILLE] >= 0.80:
+                ca_prime_by_emp[emp_id] += raw_g.get(Gamme.VOLAILLE, 0)
+        # BVF agrégé — fallback si objectifs non splitté
+        obj_bvf_agg = obj_g.get(Gamme.BVF, 0)
+        if obj_bvf_agg > 0 and obj_g.get(Gamme.BETAIL, 0) == 0 and obj_g.get(Gamme.VOLAILLE, 0) == 0:
             vol_bvf = sum(vol_g.get(g, 0) for g in _BVF_GAMMES)
-            obj_bvf = sum(obj_g.get(g, 0) for g in _BVF_GAMMES)
-            if obj_bvf > 0 and vol_bvf / obj_bvf >= 0.80:
+            if vol_bvf / obj_bvf_agg >= 0.80:
                 ca_prime_by_emp[emp_id] += sum(raw_g.get(g, 0) for g in _BVF_GAMMES)
         # Farine
         if obj_g.get(Gamme.FARINE, 0) > 0:

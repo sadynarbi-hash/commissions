@@ -142,10 +142,17 @@ def calculate_bonus(
     accompagnement_managerial: bool = False,
     # Nouvelles affaires
     ca_nouvelles_affaires: float = 0,
-    # Per-gamme pour COMMERCIAL (prime quanti par gamme)
+    # Per-gamme pour COMMERCIAL (prime quanti par gamme — chacune indépendante)
     vol_farine_realise: float = 0,
     objectif_farine: float = 0,
     ca_farine_m: float = 0,
+    vol_betail_realise: float = 0,
+    objectif_betail: float = 0,
+    ca_betail_m: float = 0,
+    vol_volaille_realise: float = 0,
+    objectif_volaille: float = 0,
+    ca_volaille_m: float = 0,
+    # BVF agrégé (compat. si objectifs non splitté)
     vol_bvf_realise: float = 0,
     objectif_bvf: float = 0,
     ca_bvf_m: float = 0,
@@ -175,6 +182,8 @@ def calculate_bonus(
         _calc_commercial(result, volume_realise, volume_objectif,
                          volume_pates_realise, volume_pates_objectif, ca_pates_m,
                          vol_farine_realise, objectif_farine, ca_farine_m,
+                         vol_betail_realise, objectif_betail, ca_betail_m,
+                         vol_volaille_realise, objectif_volaille, ca_volaille_m,
                          vol_bvf_realise, objectif_bvf, ca_bvf_m,
                          montant_facture, montant_recouvre,
                          prevision, realise_pour_prevision,
@@ -307,7 +316,9 @@ def _calc_commercial(r: BonusResult, vol_real, vol_obj,
                      # Par gamme : volume réalisé, objectif volume, CA mois M
                      vol_pates, obj_pates, ca_pates_m,
                      vol_farine, obj_farine, ca_farine_m,
-                     vol_bvf, obj_bvf, ca_bvf_m,
+                     vol_betail, obj_betail, ca_betail_m,
+                     vol_volaille, obj_volaille, ca_volaille_m,
+                     vol_bvf, obj_bvf, ca_bvf_m,   # fallback agrégé
                      mnt_fact_m1,          # CA mois M-1 → base recouvrement
                      mnt_recouv,
                      prevision, real_prev, nb_portefeuille, nb_achat, nb_croissance,
@@ -320,15 +331,20 @@ def _calc_commercial(r: BonusResult, vol_real, vol_obj,
     taux = _taux(vol_real, vol_obj)
     r.taux_atteinte_global = round(taux * 100, 2)
 
-    # V12 update : taux unifié 0,15%/0,20%/0,25% (seuil 85%) pour toutes les gammes
+    # V12 update : chaque gamme a son propre taux d'atteinte et commission indépendante
     comm = 0.0
     if obj_pates > 0:
-        comm += ca_pates_m * _palier(_taux(vol_pates, obj_pates), TAUX_COMMERCIAL)
+        comm += ca_pates_m    * _palier(_taux(vol_pates,    obj_pates),    TAUX_COMMERCIAL)
     if obj_farine > 0:
-        comm += ca_farine_m * _palier(_taux(vol_farine, obj_farine), TAUX_COMMERCIAL)
-    if obj_bvf > 0:
+        comm += ca_farine_m   * _palier(_taux(vol_farine,   obj_farine),   TAUX_COMMERCIAL)
+    if obj_betail > 0:
+        comm += ca_betail_m   * _palier(_taux(vol_betail,   obj_betail),   TAUX_COMMERCIAL)
+    if obj_volaille > 0:
+        comm += ca_volaille_m * _palier(_taux(vol_volaille, obj_volaille), TAUX_COMMERCIAL)
+    # Fallback : BVF agrégé si objectifs non splitté bétail/volaille
+    if obj_bvf > 0 and obj_betail == 0 and obj_volaille == 0:
         comm += ca_bvf_m * _palier(_taux(vol_bvf, obj_bvf), TAUX_COMMERCIAL)
-    if obj_pates == 0 and obj_farine == 0 and obj_bvf == 0:
+    if obj_pates == 0 and obj_farine == 0 and obj_betail == 0 and obj_volaille == 0 and obj_bvf == 0:
         # Fallback obj_all : taux global sur CA total
         ca_total = ca_pates_m + ca_farine_m + ca_bvf_m
         comm = ca_total * _palier(taux, TAUX_COMMERCIAL)
