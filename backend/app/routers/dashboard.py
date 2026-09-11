@@ -8,7 +8,7 @@ from ..database import get_db
 from ..models.employee import Employee, Region, TypePoste
 from ..models.bonus import Bonus, BonusPeriod, StatutBonus
 from ..models.sales import SaleData
-from ..models.objective import Objective, Gamme, ClientMonthlySale, Client
+from ..models.objective import Objective, Gamme, ClientMonthlySale, Client, ClientPortfolio
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -303,3 +303,98 @@ def get_ventes_clients(
             "nb_nouvelles":     sum(1 for d in data if d["is_nouvelle_affaire"]),
         },
     }
+
+
+@router.get("/suivi-compte")
+def get_suivi_compte(
+    periode: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Tableaux de bord chargé de compte : rankings recouvrement & conversion, clients inactifs."""
+    annee = int(periode[:4])
+
+    employes = {e.id: e for e in db.query(Employee).all()}
+    regions  = {r.id: r for r in db.query(Region).all()}
+
+    # ── 1. Recouvrement depuis SaleData (période M) ──────────────────────────
+    sales = (
+        db.query(SaleData)
+        .filter(SaleData.periode == periode, SaleData.annee_n1 == False)  # noqa: E712
+        .all()
+    )
+    rec_agg: dict[int, dict] = {}
+    for s in sales:
+        emp = employes.get(s.employee_id)
+        if not emp:
+            continue
+        eid = emp.id
+        if eid not in rec_agg:
+            reg = regions.get(emp.region_id)
+            rec_agg[eid] = {
+                "employee_id": eid,
+                "nom":         f"{emp.prenom} {emp.nom}",
+                "zone":        reg.nom if reg else "—",
+                "type_poste":  emp.type_poste.value,
+                "ca_facture":  0.0,
+                "ca_recouvre": 0.0,
+            }
+        rec_agg[eid]["ca_facture"]  += float(s.montant_ht or 0)
+        rec_agg[eid]["ca_recouvre"] += float(s.montant_recouvre or 0)
+
+    for r in rec_agg.values():
+        r["taux_recouvrement"] = (
+            round(r["ca_recouvre"] / r["ca_facture"] * 100, 1)
+            if r["ca_facture"] > 0 else 0.0
+        )
+
+    # ── 2. Clients actifs depuis ClientMonthlySale (période M) ───────────────
+    client_sales = (
+        db.query(ClientMonthlySale)
+        .filter(ClientMonthlySale.periode == periode, ClientMonthlySale.annee_n1 == False)  # noqa: E712
+        .all()
+    )
+    actifs: dict[int, set] = {}
+    for cs in client_sales:
+        if float(cs.montant_ca or 0) > 0:
+            actifs.setdefault(cs.employee_id, set()).add(cs.client_code)
+
+    # ── 3. Portefeuille depuis ClientPortfolio (année) ───────────────────────
+    portfolios = (
+        db.query(ClientPortfolio)
+        .filter(ClientPortfolio.annee == annee)
+        .all()
+    )
+    portefeuille: dict[int, int] = {}
+    for p in portfolios:
+        portefeuille[p.employee_id] = portefeuille.get(p.employee_id, 0) + 1
+
+    # ── 4. Fusion ─────────────────────────────────────────────────────────────
+    all_eids = set(rec_agg.keys()) | set(actifs.keys()) | set(portefeuille.keys())
+    rows = []
+    for eid in all_eids:
+        emp = employes.get(eid)
+        if not emp:
+            continue
+        reg = regions.get(emp.region_id)
+        nb_actifs  = len(actifs.get(eid, set()))
+        nb_total   = portefeuille.get(eid, 0)
+        nb_inactifs = max(0, nb_total - nb_actifs)
+        r_data = rec_agg.get(eid, {})
+        rows.append({
+            "employee_id":       eid,
+            "nom":               f"{emp.prenom} {emp.nom}",
+            "zone":              reg.nom if reg else "—",
+            "type_poste":        emp.type_poste.value,
+            # Recouvrement
+            "ca_facture":        round(r_data.get("ca_facture", 0), 0),
+            "ca_recouvre":       round(r_data.get("ca_recouvre", 0), 0),
+            "taux_recouvrement": r_data.get("taux_recouvrement", 0),
+            # Conversion / inactivité
+            "nb_clients_actifs":   nb_actifs,
+            "nb_clients_total":    nb_total,
+            "nb_clients_inactifs": nb_inactifs,
+            "taux_conversion":     round(nb_actifs / nb_total * 100, 1) if nb_total > 0 else 0.0,
+            "pct_inactifs":        round(nb_inactifs / nb_total * 100, 1) if nb_total > 0 else 0.0,
+        })
+
+    return {"rows": sorted(rows, key=lambda x: x["nom"]), "periode": periode}

@@ -8,6 +8,7 @@ import {
   BarChartOutlined,
   SyncOutlined,
   SettingOutlined,
+  LineChartOutlined,
   LogoutOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -31,6 +32,7 @@ const menuItems = [
   { key: '/bonuses',    icon: <DollarOutlined />,        label: 'Commissions' },
   { key: '/criteria',   icon: <CheckSquareOutlined />, label: 'Critères qualitatifs' },
   { key: '/ventes',     icon: <BarChartOutlined />,    label: 'Ventes' },
+  { key: '/suivi',      icon: <LineChartOutlined />,  label: 'Suivi Compte' },
   { key: '/sync',       icon: <SyncOutlined />,       label: 'Synchronisation' },
   { key: '/settings',   icon: <SettingOutlined />,    label: 'Paramètres' },
 ]

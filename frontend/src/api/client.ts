@@ -135,3 +135,6 @@ export const getVentes = (params?: { periode?: string; region_id?: number; gamme
 
 export const getVentesClients = (params: { periode: string; employee_id: number }) =>
   api.get('/ventes/clients', { params }).then(r => r.data)
+
+export const getSuiviCompte = (params: { periode: string }) =>
+  api.get('/suivi-compte', { params }).then(r => r.data)

@@ -12,6 +12,7 @@ import Objectives from './pages/Objectives'
 import Bonuses from './pages/Bonuses'
 import CriteriaForm from './pages/CriteriaForm'
 import Ventes from './pages/Ventes'
+import Suivi from './pages/Suivi'
 import Sync from './pages/Sync'
 import Settings from './pages/Settings'
 
@@ -29,6 +30,7 @@ function PrivateRoutes() {
         <Route path="/bonuses" element={<Bonuses />} />
         <Route path="/criteria" element={<CriteriaForm />} />
         <Route path="/ventes" element={<Ventes />} />
+        <Route path="/suivi" element={<Suivi />} />
         <Route path="/sync" element={<Sync />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
