@@ -316,13 +316,16 @@ def get_suivi_compte(
     employes = {e.id: e for e in db.query(Employee).all()}
     regions  = {r.id: r for r in db.query(Region).all()}
 
-    # ── 1. Recouvrement depuis SaleData (période M) ──────────────────────────
+    # ── 1. Recouvrement + volumes par gamme depuis SaleData (période M) ────────
     sales = (
         db.query(SaleData)
         .filter(SaleData.periode == periode, SaleData.annee_n1 == False)  # noqa: E712
         .all()
     )
     rec_agg: dict[int, dict] = {}
+    # vol_gamme[eid][gamme_str] = volume réalisé
+    vol_gamme: dict[int, dict[str, float]] = {}
+
     for s in sales:
         emp = employes.get(s.employee_id)
         if not emp:
@@ -340,12 +343,48 @@ def get_suivi_compte(
             }
         rec_agg[eid]["ca_facture"]  += float(s.montant_ht or 0)
         rec_agg[eid]["ca_recouvre"] += float(s.montant_recouvre or 0)
+        g = s.gamme.value if hasattr(s.gamme, "value") else str(s.gamme)
+        vol_gamme.setdefault(eid, {})
+        vol_gamme[eid][g] = vol_gamme[eid].get(g, 0.0) + float(s.volume or 0)
 
     for r in rec_agg.values():
         r["taux_recouvrement"] = (
             round(r["ca_recouvre"] / r["ca_facture"] * 100, 1)
             if r["ca_facture"] > 0 else 0.0
         )
+
+    # ── 1b. Objectifs par gamme (période M) ──────────────────────────────────
+    obj_gamme: dict[int, dict[str, float]] = {}
+    for o in db.query(Objective).filter(Objective.periode == periode).all():
+        g = o.gamme.value if hasattr(o.gamme, "value") else str(o.gamme)
+        obj_gamme.setdefault(o.employee_id, {})
+        obj_gamme[o.employee_id][g] = obj_gamme[o.employee_id].get(g, 0.0) + float(o.objectif_volume or 0)
+
+    # ── 1c. Classement par gamme ──────────────────────────────────────────────
+    GAMMES_SUIVI = ["VOLAILLE", "FARINE", "PATES", "BETAIL"]
+    ranking_gamme: dict[str, list] = {}
+    for g in GAMMES_SUIVI:
+        entries = []
+        for eid, emp in employes.items():
+            obj  = obj_gamme.get(eid, {}).get(g, 0.0)
+            real = vol_gamme.get(eid, {}).get(g, 0.0)
+            if obj == 0 and real == 0:
+                continue
+            reg = regions.get(emp.region_id)
+            taux = round(real / obj * 100, 1) if obj > 0 else None
+            entries.append({
+                "employee_id": eid,
+                "nom":         f"{emp.prenom} {emp.nom}",
+                "zone":        reg.nom if reg else "—",
+                "objectif":    round(obj, 1),
+                "realise":     round(real, 1),
+                "taux":        taux,
+            })
+        # Trier : ceux avec objectif d'abord (par taux desc), puis sans objectif (par réalisé desc)
+        entries.sort(key=lambda x: (x["taux"] is None, -(x["taux"] or 0), -x["realise"]))
+        for i, e in enumerate(entries):
+            e["rang"] = i + 1
+        ranking_gamme[g] = entries
 
     # ── 2. Clients actifs depuis ClientMonthlySale (période M) ───────────────
     client_sales = (
@@ -397,4 +436,8 @@ def get_suivi_compte(
             "pct_inactifs":        round(nb_inactifs / nb_total * 100, 1) if nb_total > 0 else 0.0,
         })
 
-    return {"rows": sorted(rows, key=lambda x: x["nom"]), "periode": periode}
+    return {
+        "rows":          sorted(rows, key=lambda x: x["nom"]),
+        "periode":       periode,
+        "ranking_gamme": ranking_gamme,
+    }

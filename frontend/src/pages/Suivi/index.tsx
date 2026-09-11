@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
-import { DatePicker, Select, Tag, Typography, Spin } from 'antd'
+import { DatePicker, Select, Tag, Typography, Spin, Tabs } from 'antd'
 import {
   TrophyOutlined, TeamOutlined, FallOutlined,
-  RiseOutlined, AlertOutlined,
+  RiseOutlined, AlertOutlined, BarChartOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getSuiviCompte, getRegions } from '../../api/client'
@@ -51,6 +51,16 @@ const Bar = ({ value, max, color, bg }: { value: number; max: number; color: str
   </div>
 )
 
+interface RankingGammeRow {
+  employee_id: number
+  nom: string
+  zone: string
+  objectif: number
+  realise: number
+  taux: number | null
+  rang: number
+}
+
 interface SuiviRow {
   employee_id: number
   nom: string
@@ -77,6 +87,7 @@ export default function Suivi() {
   const [periode, setPeriode] = useState(dayjs().format('YYYY-MM'))
   const [regionId, setRegionId] = useState<number | undefined>()
   const [data, setData] = useState<SuiviRow[]>([])
+  const [rankingGamme, setRankingGamme] = useState<Record<string, RankingGammeRow[]>>({})
   const [regions, setRegions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -85,7 +96,10 @@ export default function Suivi() {
   useEffect(() => {
     setLoading(true)
     getSuiviCompte({ periode })
-      .then(r => setData(r.rows ?? []))
+      .then(r => {
+        setData(r.rows ?? [])
+        setRankingGamme(r.ranking_gamme ?? {})
+      })
       .finally(() => setLoading(false))
   }, [periode])
 
@@ -262,6 +276,131 @@ export default function Suivi() {
           </div>
         </div>
       </div>
+
+      {/* ── Classement par gamme ── */}
+      {(() => {
+        const GAMME_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+          VOLAILLE: { label: '🐔 Volaille', color: '#2E7D32', bg: '#E8F5E9' },
+          FARINE:   { label: '🌾 Farine',   color: '#F57F17', bg: '#FFF8E1' },
+          PATES:    { label: '🍝 Pâtes',    color: '#1565C0', bg: '#E3F2FD' },
+          BETAIL:   { label: '🐄 Bétail',   color: '#6A1B9A', bg: '#F3E5F5' },
+        }
+
+        const colorTaux = (t: number | null) =>
+          t === null ? '#aaa' : t >= 100 ? '#1B5E20' : t >= 80 ? '#F57F17' : '#C62828'
+        const bgTaux = (t: number | null) =>
+          t === null ? '#f5f5f5' : t >= 100 ? '#E8F5E9' : t >= 80 ? '#FFF8E1' : '#FFEBEE'
+
+        const RankingTable = ({ rows }: { rows: RankingGammeRow[] }) => {
+          const maxReal = Math.max(...rows.map(r => r.realise), 1)
+          return rows.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#aaa', padding: 32 }}>Aucune donnée pour cette gamme</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#fafafa' }}>
+                  {['Rang', 'Commercial', 'Zone', 'Budget (T)', 'Réalisé (T)', '%', ''].map((h, i) => (
+                    <th key={i} style={{
+                      padding: '9px 14px', fontSize: 10, fontWeight: 700,
+                      color: '#666', textTransform: 'uppercase', letterSpacing: 0.4,
+                      textAlign: i <= 2 ? 'left' : 'right',
+                      borderBottom: '1.5px solid #e8e8e8', whiteSpace: 'nowrap',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.employee_id} style={{
+                    background: i % 2 === 0 ? '#fff' : '#fafafa',
+                    borderBottom: '1px solid #f0f0f0',
+                  }}>
+                    <td style={{ padding: '9px 14px' }}>
+                      <RankBadge rank={r.rang} />
+                    </td>
+                    <td style={{ padding: '9px 14px', fontWeight: 600, fontSize: 13, color: '#1B5E20' }}>{r.nom}</td>
+                    <td style={{ padding: '9px 14px' }}>
+                      <Tag style={{ fontSize: 10, fontWeight: 700, background: '#e8f5e9', color: '#1B5E20', border: '1px solid #a5d6a7', borderRadius: 3 }}>{r.zone}</Tag>
+                    </td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', color: '#888', fontVariantNumeric: 'tabular-nums' }}>
+                      {r.objectif > 0 ? r.objectif.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : <span style={{ color: '#ccc' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                      {r.realise.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                    </td>
+                    <td style={{ padding: '9px 14px', textAlign: 'right' }}>
+                      {r.taux !== null ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 10px', borderRadius: 10,
+                          fontFamily: "'Barlow Condensed', sans-serif",
+                          fontSize: 14, fontWeight: 700,
+                          background: bgTaux(r.taux), color: colorTaux(r.taux),
+                        }}>{r.taux.toFixed(0)}%</span>
+                      ) : <span style={{ color: '#ccc' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '9px 14px', width: 120 }}>
+                      <div style={{ height: 6, borderRadius: 3, background: '#eee', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 3,
+                          width: `${Math.min(100, r.realise / maxReal * 100)}%`,
+                          background: colorTaux(r.taux),
+                          transition: 'width 0.4s ease',
+                        }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: '#f0f7f0', borderTop: '2px solid #a5d6a7' }}>
+                  <td colSpan={3} style={{ padding: '9px 14px', fontWeight: 800, color: '#1B5E20', fontSize: 12 }}>TOTAL</td>
+                  <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 700, color: '#888', fontVariantNumeric: 'tabular-nums' }}>
+                    {rows.reduce((s, r) => s + r.objectif, 0).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                  </td>
+                  <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 800, color: '#1B5E20', fontVariantNumeric: 'tabular-nums' }}>
+                    {rows.reduce((s, r) => s + r.realise, 0).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                  </td>
+                  <td style={{ padding: '9px 14px', textAlign: 'right' }}>
+                    {(() => {
+                      const totObj = rows.reduce((s, r) => s + r.objectif, 0)
+                      const totReal = rows.reduce((s, r) => s + r.realise, 0)
+                      const t = totObj > 0 ? totReal / totObj * 100 : null
+                      return t !== null ? (
+                        <span style={{
+                          display: 'inline-block', padding: '2px 10px', borderRadius: 10,
+                          fontFamily: "'Barlow Condensed', sans-serif", fontSize: 14, fontWeight: 700,
+                          background: bgTaux(t), color: colorTaux(t),
+                        }}>{t.toFixed(0)}%</span>
+                      ) : '—'
+                    })()}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          )
+        }
+
+        const tabItems = Object.entries(GAMME_CONFIG).map(([key, cfg]) => ({
+          key,
+          label: (
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{cfg.label}</span>
+          ),
+          children: <RankingTable rows={rankingGamme[key] ?? []} />,
+        }))
+
+        return (
+          <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <BarChartOutlined style={{ color: '#1B5E20' }} />
+              <span style={{ fontWeight: 700, color: '#1B5E20', fontSize: 13 }}>Classement Réalisation vs Budget — par gamme</span>
+            </div>
+            <div style={{ padding: '0 8px' }}>
+              <Tabs items={tabItems} defaultActiveKey="VOLAILLE" size="small" />
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Tableau clients inactifs ── */}
       <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
