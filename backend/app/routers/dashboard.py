@@ -313,7 +313,7 @@ def get_suivi_compte(
     """Tableaux de bord chargé de compte : rankings recouvrement & conversion, clients inactifs."""
     annee = int(periode[:4])
 
-    employes = {e.id: e for e in db.query(Employee).all()}
+    employes = {e.id: e for e in db.query(Employee).filter(Employee.actif == True).all()}  # noqa: E712
     regions  = {r.id: r for r in db.query(Region).all()}
 
     # ── 1. Recouvrement + volumes par gamme depuis SaleData (période M) ────────
