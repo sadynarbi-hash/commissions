@@ -176,107 +176,6 @@ export default function Suivi() {
         {loading && <Spin size="small" />}
       </div>
 
-      {/* ── KPIs globaux ── */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <KPI icon={<RiseOutlined />}  label="Taux recouvrement moyen"
-          value={fmtPct(txRecovMoy)} sub={`${fmt(totalRec)} F / ${fmt(totalCA)} F`}
-          color={colorRecouv(txRecovMoy)} />
-        <KPI icon={<TeamOutlined />}  label="Taux conversion portefeuille"
-          value={fmtPct(txConvMoy)} sub={`${totalActifs} actifs / ${totalPortef} clients`}
-          color={colorConv(txConvMoy)} />
-        <KPI icon={<AlertOutlined />} label="Clients inactifs (total)"
-          value={totalInactifs} sub={`sur ${totalPortef} en portefeuille`}
-          color={totalInactifs > 50 ? '#C62828' : '#F57F17'} />
-        <KPI icon={<TrophyOutlined />} label="Commerciaux actifs"
-          value={rows.filter(r => r.ca_facture > 0).length}
-          sub={`sur ${rows.length} commerciaux`}
-          color="#1B5E20" />
-      </div>
-
-      {/* ── Rankings côte à côte ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-
-        {/* Ranking Recouvrement */}
-        <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8f5e9', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <RiseOutlined style={{ color: '#1B5E20' }} />
-            <span style={{ fontWeight: 700, color: '#1B5E20', fontSize: 13 }}>Classement Recouvrement</span>
-          </div>
-          <div style={{ padding: '8px 0' }}>
-            {rankRecouv.length === 0 && (
-              <p style={{ textAlign: 'center', color: '#aaa', padding: 24 }}>Aucune donnée</p>
-            )}
-            {rankRecouv.map((r, i) => (
-              <div key={r.employee_id} style={{
-                padding: '8px 16px',
-                borderBottom: i < rankRecouv.length - 1 ? '1px solid #f5f5f5' : 'none',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                  <RankBadge rank={i + 1} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 12, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nom}</div>
-                    <div style={{ fontSize: 10, color: '#aaa' }}>{r.zone} · {ROLE_LABELS[r.type_poste] ?? r.type_poste}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <span style={{
-                      fontFamily: "'Barlow Condensed', sans-serif",
-                      fontSize: 18, fontWeight: 700, color: colorRecouv(r.taux_recouvrement),
-                    }}>{fmtPct(r.taux_recouvrement)}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Bar value={r.ca_recouvre} max={maxCA} color={colorRecouv(r.taux_recouvrement)} bg={bgRecouv(r.taux_recouvrement)} />
-                  <span style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', minWidth: 70, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {fmt(r.ca_recouvre)} F
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Ranking Conversion */}
-        <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8f5e9', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FallOutlined style={{ color: '#1565C0', transform: 'rotate(180deg)' }} />
-            <span style={{ fontWeight: 700, color: '#1565C0', fontSize: 13 }}>Classement Taux de Conversion</span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#aaa' }}>clients actifs / portefeuille</span>
-          </div>
-          <div style={{ padding: '8px 0' }}>
-            {rankConv.length === 0 && (
-              <p style={{ textAlign: 'center', color: '#aaa', padding: 24 }}>Aucune donnée</p>
-            )}
-            {rankConv.map((r, i) => (
-              <div key={r.employee_id} style={{
-                padding: '8px 16px',
-                borderBottom: i < rankConv.length - 1 ? '1px solid #f5f5f5' : 'none',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                  <RankBadge rank={i + 1} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 12, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nom}</div>
-                    <div style={{ fontSize: 10, color: '#aaa' }}>{r.zone} · {ROLE_LABELS[r.type_poste] ?? r.type_poste}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <span style={{
-                      fontFamily: "'Barlow Condensed', sans-serif",
-                      fontSize: 18, fontWeight: 700, color: colorConv(r.taux_conversion),
-                    }}>{fmtPct(r.taux_conversion)}</span>
-                    <div style={{ fontSize: 10, color: '#aaa', fontVariantNumeric: 'tabular-nums' }}>{r.nb_clients_actifs} / {r.nb_clients_total}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Bar value={r.nb_clients_actifs} max={maxConv} color={colorConv(r.taux_conversion)} bg={bgConv(r.taux_conversion)} />
-                  <span style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', minWidth: 70, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {r.nb_clients_inactifs} inactif{r.nb_clients_inactifs > 1 ? 's' : ''}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* ── Classement par gamme ── */}
       {(() => {
         const GAMME_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -401,6 +300,107 @@ export default function Suivi() {
           </div>
         )
       })()}
+
+      {/* ── KPIs globaux ── */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <KPI icon={<RiseOutlined />}  label="Taux recouvrement moyen"
+          value={fmtPct(txRecovMoy)} sub={`${fmt(totalRec)} F / ${fmt(totalCA)} F`}
+          color={colorRecouv(txRecovMoy)} />
+        <KPI icon={<TeamOutlined />}  label="Taux conversion portefeuille"
+          value={fmtPct(txConvMoy)} sub={`${totalActifs} actifs / ${totalPortef} clients`}
+          color={colorConv(txConvMoy)} />
+        <KPI icon={<AlertOutlined />} label="Clients inactifs (total)"
+          value={totalInactifs} sub={`sur ${totalPortef} en portefeuille`}
+          color={totalInactifs > 50 ? '#C62828' : '#F57F17'} />
+        <KPI icon={<TrophyOutlined />} label="Commerciaux actifs"
+          value={rows.filter(r => r.ca_facture > 0).length}
+          sub={`sur ${rows.length} commerciaux`}
+          color="#1B5E20" />
+      </div>
+
+      {/* ── Rankings côte à côte ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+        {/* Ranking Recouvrement */}
+        <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8f5e9', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <RiseOutlined style={{ color: '#1B5E20' }} />
+            <span style={{ fontWeight: 700, color: '#1B5E20', fontSize: 13 }}>Classement Recouvrement</span>
+          </div>
+          <div style={{ padding: '8px 0' }}>
+            {rankRecouv.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#aaa', padding: 24 }}>Aucune donnée</p>
+            )}
+            {rankRecouv.map((r, i) => (
+              <div key={r.employee_id} style={{
+                padding: '8px 16px',
+                borderBottom: i < rankRecouv.length - 1 ? '1px solid #f5f5f5' : 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                  <RankBadge rank={i + 1} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nom}</div>
+                    <div style={{ fontSize: 10, color: '#aaa' }}>{r.zone} · {ROLE_LABELS[r.type_poste] ?? r.type_poste}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <span style={{
+                      fontFamily: "'Barlow Condensed', sans-serif",
+                      fontSize: 18, fontWeight: 700, color: colorRecouv(r.taux_recouvrement),
+                    }}>{fmtPct(r.taux_recouvrement)}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Bar value={r.ca_recouvre} max={maxCA} color={colorRecouv(r.taux_recouvrement)} bg={bgRecouv(r.taux_recouvrement)} />
+                  <span style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', minWidth: 70, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmt(r.ca_recouvre)} F
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Ranking Conversion */}
+        <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8f5e9', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FallOutlined style={{ color: '#1565C0', transform: 'rotate(180deg)' }} />
+            <span style={{ fontWeight: 700, color: '#1565C0', fontSize: 13 }}>Classement Taux de Conversion</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#aaa' }}>clients actifs / portefeuille</span>
+          </div>
+          <div style={{ padding: '8px 0' }}>
+            {rankConv.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#aaa', padding: 24 }}>Aucune donnée</p>
+            )}
+            {rankConv.map((r, i) => (
+              <div key={r.employee_id} style={{
+                padding: '8px 16px',
+                borderBottom: i < rankConv.length - 1 ? '1px solid #f5f5f5' : 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                  <RankBadge rank={i + 1} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nom}</div>
+                    <div style={{ fontSize: 10, color: '#aaa' }}>{r.zone} · {ROLE_LABELS[r.type_poste] ?? r.type_poste}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <span style={{
+                      fontFamily: "'Barlow Condensed', sans-serif",
+                      fontSize: 18, fontWeight: 700, color: colorConv(r.taux_conversion),
+                    }}>{fmtPct(r.taux_conversion)}</span>
+                    <div style={{ fontSize: 10, color: '#aaa', fontVariantNumeric: 'tabular-nums' }}>{r.nb_clients_actifs} / {r.nb_clients_total}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Bar value={r.nb_clients_actifs} max={maxConv} color={colorConv(r.taux_conversion)} bg={bgConv(r.taux_conversion)} />
+                  <span style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', minWidth: 70, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {r.nb_clients_inactifs} inactif{r.nb_clients_inactifs > 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* ── Tableau clients inactifs ── */}
       <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
