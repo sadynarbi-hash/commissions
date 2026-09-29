@@ -25,22 +25,31 @@ const NMA_SIDER  = '#0D3B12'   // vert très foncé pour le fond sidebar
 
 interface Props { children: ReactNode }
 
-const menuItems = [
-  { key: '/',           icon: <DashboardOutlined />, label: 'Tableau de bord' },
-  { key: '/employees',  icon: <TeamOutlined />,       label: 'Commerciaux' },
-  { key: '/objectives', icon: <AimOutlined />,        label: 'Objectifs' },
-  { key: '/bonuses',    icon: <DollarOutlined />,        label: 'Commissions' },
-  { key: '/criteria',   icon: <CheckSquareOutlined />, label: 'Critères qualitatifs' },
-  { key: '/ventes',     icon: <BarChartOutlined />,    label: 'Ventes' },
-  { key: '/suivi',      icon: <LineChartOutlined />,  label: 'Suivi Compte' },
-  { key: '/sync',       icon: <SyncOutlined />,       label: 'Synchronisation' },
-  { key: '/settings',   icon: <SettingOutlined />,    label: 'Paramètres' },
+const ALL_MENU_ITEMS = [
+  { key: '/',           icon: <DashboardOutlined />, label: 'Tableau de bord',      roles: null },
+  { key: '/employees',  icon: <TeamOutlined />,       label: 'Commerciaux',          roles: null },
+  { key: '/objectives', icon: <AimOutlined />,        label: 'Objectifs',            roles: null },
+  { key: '/bonuses',    icon: <DollarOutlined />,     label: 'Commissions',          roles: null },
+  { key: '/criteria',   icon: <CheckSquareOutlined />,label: 'Critères qualitatifs', roles: null },
+  { key: '/ventes',     icon: <BarChartOutlined />,   label: 'Ventes',               roles: null },
+  { key: '/suivi',      icon: <LineChartOutlined />,  label: 'Suivi Compte',         roles: null },
+  { key: '/sync',       icon: <SyncOutlined />,       label: 'Synchronisation',      roles: ['ADMIN'] },
+  { key: '/settings',   icon: <SettingOutlined />,    label: 'Paramètres',           roles: ['ADMIN'] },
 ]
+
+const SUIVI_ONLY_KEYS = new Set(['/suivi'])
 
 export default function AppLayout({ children }: Props) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { user, logout } = useAuth()
+
+  const isSuviOnly = user?.role === 'SUIVI_ONLY'
+  const menuItems = ALL_MENU_ITEMS.filter(item => {
+    if (isSuviOnly) return SUIVI_ONLY_KEYS.has(item.key)
+    if (item.roles) return item.roles.includes(user?.role ?? '')
+    return true
+  })
 
   const userMenu = {
     items: [

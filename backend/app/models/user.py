@@ -6,10 +6,11 @@ from ..database import Base
 
 
 class UserRole(str, enum.Enum):
-    ADMIN      = "ADMIN"
-    DIRECTEUR  = "DIRECTEUR"
-    ADJOINT    = "ADJOINT"
-    LECTEUR    = "LECTEUR"
+    ADMIN       = "ADMIN"
+    DIRECTEUR   = "DIRECTEUR"
+    ADJOINT     = "ADJOINT"
+    LECTEUR     = "LECTEUR"
+    SUIVI_ONLY  = "SUIVI_ONLY"
 
 
 class User(Base):

@@ -19,8 +19,23 @@ import Settings from './pages/Settings'
 dayjs.locale('fr')
 
 function PrivateRoutes() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   if (!token) return <Navigate to="/login" replace />
+
+  const isSuviOnly = user?.role === 'SUIVI_ONLY'
+  const isAdmin    = user?.role === 'ADMIN'
+
+  if (isSuviOnly) {
+    return (
+      <AppLayout>
+        <Routes>
+          <Route path="/suivi" element={<Suivi />} />
+          <Route path="*" element={<Navigate to="/suivi" replace />} />
+        </Routes>
+      </AppLayout>
+    )
+  }
+
   return (
     <AppLayout>
       <Routes>
@@ -31,8 +46,8 @@ function PrivateRoutes() {
         <Route path="/criteria" element={<CriteriaForm />} />
         <Route path="/ventes" element={<Ventes />} />
         <Route path="/suivi" element={<Suivi />} />
-        <Route path="/sync" element={<Sync />} />
-        <Route path="/settings" element={<Settings />} />
+        {isAdmin && <Route path="/sync" element={<Sync />} />}
+        {isAdmin && <Route path="/settings" element={<Settings />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppLayout>
