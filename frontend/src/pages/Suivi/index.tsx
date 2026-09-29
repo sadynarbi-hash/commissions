@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
-import { DatePicker, Select, Tag, Typography, Spin, Tabs } from 'antd'
+import { DatePicker, Select, Tag, Typography, Spin, Tabs, Button } from 'antd'
 import {
   TrophyOutlined, TeamOutlined, FallOutlined,
-  RiseOutlined, AlertOutlined, BarChartOutlined,
+  RiseOutlined, AlertOutlined, BarChartOutlined, DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import * as XLSX from 'xlsx'
 import { getSuiviCompte, getRegions } from '../../api/client'
 
 const { Title } = Typography
@@ -86,6 +87,15 @@ interface RankingConvGammeRow {
   nb_clients_inactifs: number
   taux_conversion: number
   rang: number
+}
+
+function exportXlsx(filename: string, sheets: { name: string; rows: Record<string, any>[] }[]) {
+  const wb = XLSX.utils.book_new()
+  sheets.forEach(({ name, rows }) => {
+    const ws = XLSX.utils.json_to_sheet(rows)
+    XLSX.utils.book_append_sheet(wb, ws, name.substring(0, 31))
+  })
+  XLSX.writeFile(wb, filename)
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -215,6 +225,15 @@ export default function Suivi() {
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8f5e9', display: 'flex', alignItems: 'center', gap: 8 }}>
             <RiseOutlined style={{ color: '#1B5E20' }} />
             <span style={{ fontWeight: 700, color: '#1B5E20', fontSize: 13 }}>Classement Recouvrement</span>
+            <Button size="small" icon={<DownloadOutlined />} style={{ marginLeft: 'auto', fontSize: 11 }}
+              onClick={() => exportXlsx(`recouvrement_${periode}.xlsx`, [{
+                name: 'Recouvrement',
+                rows: rankRecouv.map((r, i) => ({
+                  Rang: i + 1, Commercial: r.nom, Zone: r.zone, Rôle: ROLE_LABELS[r.type_poste] ?? r.type_poste,
+                  'CA Facturé (F)': r.ca_facture, 'CA Recouvré (F)': r.ca_recouvre,
+                  'Taux recouvrement %': r.taux_recouvrement,
+                })),
+              }])}>Excel</Button>
           </div>
           <div style={{ padding: '8px 0' }}>
             {rankRecouv.length === 0 && (
@@ -254,7 +273,18 @@ export default function Suivi() {
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8f5e9', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FallOutlined style={{ color: '#1565C0', transform: 'rotate(180deg)' }} />
             <span style={{ fontWeight: 700, color: '#1565C0', fontSize: 13 }}>Classement Taux de Conversion</span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#aaa' }}>actifs gamme / portefeuille total</span>
+            <Button size="small" icon={<DownloadOutlined />} style={{ marginLeft: 'auto', fontSize: 11 }}
+              onClick={() => exportXlsx(`conversion_gamme_${periode}.xlsx`,
+                ['VOLAILLE', 'FARINE', 'PATES', 'BETAIL'].map(g => ({
+                  name: g.charAt(0) + g.slice(1).toLowerCase(),
+                  rows: (rankingConvGamme[g] ?? []).map((r, i) => ({
+                    Rang: i + 1, Commercial: r.nom, Zone: r.zone, Rôle: ROLE_LABELS[r.type_poste] ?? r.type_poste,
+                    'Actifs gamme': r.nb_clients_actifs, 'Portefeuille total': r.nb_clients_total,
+                    'Inactifs gamme': r.nb_clients_inactifs, 'Taux conversion %': r.taux_conversion,
+                  })),
+                }))
+              )}>Excel</Button>
+            <span style={{ fontSize: 10, color: '#aaa' }}>actifs gamme / portefeuille total</span>
           </div>
           <div style={{ padding: '0 8px' }}>
             {(() => {
@@ -432,6 +462,17 @@ export default function Suivi() {
             <div style={{ padding: '12px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 8 }}>
               <BarChartOutlined style={{ color: '#1B5E20' }} />
               <span style={{ fontWeight: 700, color: '#1B5E20', fontSize: 13 }}>Classement Réalisation vs Budget — par gamme</span>
+              <Button size="small" icon={<DownloadOutlined />} style={{ marginLeft: 'auto', fontSize: 11 }}
+                onClick={() => exportXlsx(`realisation_budget_${periode}.xlsx`,
+                  ['VOLAILLE', 'FARINE', 'PATES', 'BETAIL'].map(g => ({
+                    name: g.charAt(0) + g.slice(1).toLowerCase(),
+                    rows: (rankingGamme[g] ?? []).map(r => ({
+                      Rang: r.rang, Commercial: r.nom, Zone: r.zone,
+                      'Budget (T)': r.objectif, 'Réalisé (T)': r.realise,
+                      'Taux atteinte %': r.taux ?? '—',
+                    })),
+                  }))
+                )}>Excel</Button>
             </div>
             <div style={{ padding: '0 8px' }}>
               <Tabs items={tabItems} defaultActiveKey="VOLAILLE" size="small" />
@@ -445,7 +486,17 @@ export default function Suivi() {
         <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5f5f5', display: 'flex', alignItems: 'center', gap: 8 }}>
           <AlertOutlined style={{ color: '#C62828' }} />
           <span style={{ fontWeight: 700, color: '#C62828', fontSize: 13 }}>Détail des clients inactifs par commercial</span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: '#aaa' }}>
+          <Button size="small" icon={<DownloadOutlined />} style={{ marginLeft: 'auto', fontSize: 11 }}
+            onClick={() => exportXlsx(`clients_inactifs_${periode}.xlsx`, [{
+              name: 'Inactifs',
+              rows: rankInactifs.map(r => ({
+                Commercial: r.nom, Zone: r.zone, Rôle: ROLE_LABELS[r.type_poste] ?? r.type_poste,
+                Portefeuille: r.nb_clients_total, Actifs: r.nb_clients_actifs,
+                Inactifs: r.nb_clients_inactifs, '% Inactifs': r.pct_inactifs,
+                'Taux conversion %': r.taux_conversion,
+              })),
+            }])}>Excel</Button>
+          <span style={{ marginLeft: 8, fontSize: 11, color: '#aaa' }}>
             Clients en portefeuille sans achat ce mois
           </span>
         </div>
