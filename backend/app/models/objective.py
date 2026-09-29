@@ -79,10 +79,10 @@ class ClientPortfolio(Base):
 
 
 class ClientMonthlySale(Base):
-    """Volumes livrés par client par mois — alimenté depuis DLN1 au moment de la sync."""
+    """Volumes livrés par client par mois et par gamme — alimenté depuis DLN1."""
     __tablename__ = "client_monthly_sales"
     __table_args__ = (
-        UniqueConstraint("employee_id", "client_code", "periode", "annee_n1",
+        UniqueConstraint("employee_id", "client_code", "gamme", "periode", "annee_n1",
                          name="uq_client_monthly_sale"),
     )
 
@@ -90,6 +90,7 @@ class ClientMonthlySale(Base):
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
     client_code: Mapped[str] = mapped_column(String(50))
     client_nom: Mapped[Optional[str]] = mapped_column(String(200))
+    gamme: Mapped[Optional[Gamme]] = mapped_column(SAEnum(Gamme, native_enum=False), nullable=True)
     periode: Mapped[str] = mapped_column(String(7))
     volume: Mapped[float] = mapped_column(Numeric(15, 3), default=0)
     montant_ca: Mapped[float] = mapped_column(Numeric(15, 2), default=0)

@@ -386,16 +386,20 @@ def get_suivi_compte(
             e["rang"] = i + 1
         ranking_gamme[g] = entries
 
-    # ── 2. Clients actifs depuis ClientMonthlySale (période M) ───────────────
+    # ── 2. Clients actifs depuis ClientMonthlySale (période M) — global + par gamme ──
     client_sales = (
         db.query(ClientMonthlySale)
         .filter(ClientMonthlySale.periode == periode, ClientMonthlySale.annee_n1 == False)  # noqa: E712
         .all()
     )
-    actifs: dict[int, set] = {}
+    actifs: dict[int, set] = {}               # eid → set(client_code)
+    actifs_gamme: dict[int, dict] = {}        # eid → {gamme_str → set(client_code)}
     for cs in client_sales:
         if float(cs.montant_ca or 0) > 0:
             actifs.setdefault(cs.employee_id, set()).add(cs.client_code)
+            if cs.gamme:
+                g = cs.gamme.value if hasattr(cs.gamme, "value") else str(cs.gamme)
+                actifs_gamme.setdefault(cs.employee_id, {}).setdefault(g, set()).add(cs.client_code)
 
     # ── 3. Portefeuille depuis ClientPortfolio (année) ───────────────────────
     portfolios = (
@@ -415,10 +419,19 @@ def get_suivi_compte(
         if not emp:
             continue
         reg = regions.get(emp.region_id)
-        nb_actifs  = len(actifs.get(eid, set()))
-        nb_total   = portefeuille.get(eid, 0)
+        nb_actifs   = len(actifs.get(eid, set()))
+        nb_total    = portefeuille.get(eid, 0)
         nb_inactifs = max(0, nb_total - nb_actifs)
         r_data = rec_agg.get(eid, {})
+        # Conversion par gamme : nb clients actifs sur cette gamme / portefeuille total
+        conv_par_gamme = {}
+        for g in GAMMES_SUIVI:
+            nb_g = len(actifs_gamme.get(eid, {}).get(g, set()))
+            conv_par_gamme[g] = {
+                "nb_actifs": nb_g,
+                "nb_total":  nb_total,
+                "taux":      round(nb_g / nb_total * 100, 1) if nb_total > 0 else 0.0,
+            }
         rows.append({
             "employee_id":       eid,
             "nom":               f"{emp.prenom} {emp.nom}",
@@ -434,10 +447,37 @@ def get_suivi_compte(
             "nb_clients_inactifs": nb_inactifs,
             "taux_conversion":     round(nb_actifs / nb_total * 100, 1) if nb_total > 0 else 0.0,
             "pct_inactifs":        round(nb_inactifs / nb_total * 100, 1) if nb_total > 0 else 0.0,
+            "conv_par_gamme":      conv_par_gamme,
         })
 
+    # ── 5. Classement conversion par gamme ────────────────────────────────────
+    ranking_conv_gamme: dict[str, list] = {}
+    for g in GAMMES_SUIVI:
+        entries = []
+        for row in rows:
+            cg = row["conv_par_gamme"].get(g, {})
+            nb_g = cg.get("nb_actifs", 0)
+            nb_t = cg.get("nb_total", 0)
+            if nb_g == 0 and nb_t == 0:
+                continue
+            entries.append({
+                "employee_id":       row["employee_id"],
+                "nom":               row["nom"],
+                "zone":              row["zone"],
+                "type_poste":        row["type_poste"],
+                "nb_clients_actifs": nb_g,
+                "nb_clients_total":  nb_t,
+                "nb_clients_inactifs": max(0, nb_t - nb_g),
+                "taux_conversion":   cg.get("taux", 0.0),
+            })
+        entries.sort(key=lambda x: -x["taux_conversion"])
+        for i, e in enumerate(entries):
+            e["rang"] = i + 1
+        ranking_conv_gamme[g] = entries
+
     return {
-        "rows":          sorted(rows, key=lambda x: x["nom"]),
-        "periode":       periode,
-        "ranking_gamme": ranking_gamme,
+        "rows":               sorted(rows, key=lambda x: x["nom"]),
+        "periode":            periode,
+        "ranking_gamme":      ranking_gamme,
+        "ranking_conv_gamme": ranking_conv_gamme,
     }

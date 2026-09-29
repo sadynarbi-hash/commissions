@@ -101,10 +101,10 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
             agg[key]["volume_kg"] += poids
             agg[key]["montant"]   += montant
 
-            # Agrégation par client (toutes gammes confondues)
+            # Agrégation par client et par gamme
             client_code = str(r.get("client_code") or "")
             if client_code:
-                ck = (sap_code, client_code, periode_bl)
+                ck = (sap_code, client_code, gamme_str, periode_bl)
                 if ck not in client_agg:
                     client_agg[ck] = {
                         "employee": emp,
@@ -200,48 +200,51 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
         db.commit()
 
         # ── Mise à jour montant_recouvre par client sur ClientMonthlySale existants ──
-        # Collections (factures) et BLs peuvent avoir des périodes différentes.
-        # On fait un passage séparé sur tous les enregistrements de recouv_client
-        # pour patcher les lignes existantes, quelle que soit l'origine de la période.
+        # Le recouvrement est par client (pas par gamme) — on le distribue à toutes
+        # les lignes gamme du client proportionnellement.
         for (emp_id, client_code, per_col), mnt_rec in recouv_client.items():
             if mnt_rec <= 0:
                 continue
-            db.query(ClientMonthlySale).filter(
+            rows_client = db.query(ClientMonthlySale).filter(
                 ClientMonthlySale.employee_id == emp_id,
                 ClientMonthlySale.client_code == client_code,
                 ClientMonthlySale.periode     == per_col,
                 ClientMonthlySale.annee_n1    == False,
-            ).update({"montant_recouvre": mnt_rec}, synchronize_session=False)
+            ).all()
+            total_vol = sum(float(r.volume or 0) for r in rows_client)
+            for r in rows_client:
+                vol = float(r.volume or 0)
+                r.montant_recouvre = mnt_rec * (vol / total_vol) if total_vol > 0 else 0
         db.commit()
 
-        # ── Volumes clients mois courant → ClientMonthlySale ─────────────
+        # ── Volumes clients mois courant → ClientMonthlySale (par gamme) ────
         cms_upserted = 0
-        for (sap_code, client_code, per), data in client_agg.items():
-            emp          = data["employee"]
-            volume       = float(data["volume_kg"] / KG_TO_TONNE)
-            montant_c    = float(data["montant"])
-            mnt_recouv_c = recouv_client.get((emp.id, client_code, per), 0.0)
+        for (sap_code, client_code, gamme_str, per), data in client_agg.items():
+            emp       = data["employee"]
+            volume    = float(data["volume_kg"] / KG_TO_TONNE)
+            montant_c = float(data["montant"])
+            gamme_val = Gamme(gamme_str) if gamme_str else None
             existing = db.query(ClientMonthlySale).filter(
                 ClientMonthlySale.employee_id == emp.id,
                 ClientMonthlySale.client_code == client_code,
+                ClientMonthlySale.gamme       == gamme_val,
                 ClientMonthlySale.periode     == per,
                 ClientMonthlySale.annee_n1    == False,
             ).first()
             if existing:
-                existing.volume           = volume
-                existing.montant_ca       = montant_c
-                existing.montant_recouvre = mnt_recouv_c
-                existing.client_nom       = data["client_nom"]
+                existing.volume     = volume
+                existing.montant_ca = montant_c
+                existing.client_nom = data["client_nom"]
             else:
                 db.add(ClientMonthlySale(
-                    employee_id      = emp.id,
-                    client_code      = client_code,
-                    client_nom       = data["client_nom"],
-                    periode          = per,
-                    volume           = volume,
-                    montant_ca       = montant_c,
-                    montant_recouvre = mnt_recouv_c,
-                    annee_n1         = False,
+                    employee_id = emp.id,
+                    client_code = client_code,
+                    client_nom  = data["client_nom"],
+                    gamme       = gamme_val,
+                    periode     = per,
+                    volume      = volume,
+                    montant_ca  = montant_c,
+                    annee_n1    = False,
                 ))
             cms_upserted += 1
         db.commit()
@@ -258,7 +261,8 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
         n1_agg: dict[tuple, dict] = {}
         for r in rows_n1:
             code_article = str(r.get("article_code", "") or "")
-            if not connector.detect_gamme(code_article):
+            gamme_n1 = connector.detect_gamme(code_article)
+            if not gamme_n1:
                 continue
             sap_code    = str(r.get("sap_code_employe", "") or "")
             emp         = employes.get(sap_code)
@@ -266,17 +270,19 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
             if not emp or not client_code:
                 continue
             poids = Decimal(str(r.get("poids_kg") or 0))
-            ck = (emp.id, client_code)
+            ck = (emp.id, client_code, gamme_n1)
             if ck not in n1_agg:
                 n1_agg[ck] = {"client_nom": r.get("client_nom") or "", "volume_kg": Decimal(0)}
             n1_agg[ck]["volume_kg"] += poids
 
         n1_upserted = 0
-        for (emp_id, client_code), data in n1_agg.items():
-            volume = float(data["volume_kg"] / KG_TO_TONNE)
+        for (emp_id, client_code, gamme_n1), data in n1_agg.items():
+            volume    = float(data["volume_kg"] / KG_TO_TONNE)
+            gamme_val = Gamme(gamme_n1) if gamme_n1 else None
             existing = db.query(ClientMonthlySale).filter(
                 ClientMonthlySale.employee_id == emp_id,
                 ClientMonthlySale.client_code == client_code,
+                ClientMonthlySale.gamme       == gamme_val,
                 ClientMonthlySale.periode     == periode_n1,
                 ClientMonthlySale.annee_n1    == True,
             ).first()
@@ -287,6 +293,7 @@ def sync_sales(db: Session, connector: SAPConnectorBase,
                     employee_id = emp_id,
                     client_code = client_code,
                     client_nom  = data["client_nom"],
+                    gamme       = gamme_val,
                     periode     = periode_n1,
                     volume      = volume,
                     annee_n1    = True,

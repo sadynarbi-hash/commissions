@@ -76,6 +76,18 @@ interface SuiviRow {
   pct_inactifs: number
 }
 
+interface RankingConvGammeRow {
+  employee_id: number
+  nom: string
+  zone: string
+  type_poste: string
+  nb_clients_actifs: number
+  nb_clients_total: number
+  nb_clients_inactifs: number
+  taux_conversion: number
+  rang: number
+}
+
 const ROLE_LABELS: Record<string, string> = {
   COMMERCIAL: 'Commercial', RCR: 'RCR', SV: 'SV',
   ATC_BV: 'ATC BV', ATC_FARINE: 'ATC Farine',
@@ -88,6 +100,7 @@ export default function Suivi() {
   const [regionId, setRegionId] = useState<number | undefined>()
   const [data, setData] = useState<SuiviRow[]>([])
   const [rankingGamme, setRankingGamme] = useState<Record<string, RankingGammeRow[]>>({})
+  const [rankingConvGamme, setRankingConvGamme] = useState<Record<string, RankingConvGammeRow[]>>({})
   const [regions, setRegions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -99,6 +112,7 @@ export default function Suivi() {
       .then(r => {
         setData(r.rows ?? [])
         setRankingGamme(r.ranking_gamme ?? {})
+        setRankingConvGamme(r.ranking_conv_gamme ?? {})
       })
       .finally(() => setLoading(false))
   }, [periode])
@@ -235,44 +249,68 @@ export default function Suivi() {
           </div>
         </div>
 
-        {/* Ranking Conversion */}
+        {/* Ranking Conversion — par gamme */}
         <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8f5e9', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FallOutlined style={{ color: '#1565C0', transform: 'rotate(180deg)' }} />
             <span style={{ fontWeight: 700, color: '#1565C0', fontSize: 13 }}>Classement Taux de Conversion</span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#aaa' }}>clients actifs / portefeuille</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#aaa' }}>actifs gamme / portefeuille total</span>
           </div>
-          <div style={{ padding: '8px 0' }}>
-            {rankConv.length === 0 && (
-              <p style={{ textAlign: 'center', color: '#aaa', padding: 24 }}>Aucune donnée</p>
-            )}
-            {rankConv.map((r, i) => (
-              <div key={r.employee_id} style={{
-                padding: '8px 16px',
-                borderBottom: i < rankConv.length - 1 ? '1px solid #f5f5f5' : 'none',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                  <RankBadge rank={i + 1} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 12, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nom}</div>
-                    <div style={{ fontSize: 10, color: '#aaa' }}>{r.zone} · {ROLE_LABELS[r.type_poste] ?? r.type_poste}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <span style={{
-                      fontFamily: "'Barlow Condensed', sans-serif",
-                      fontSize: 18, fontWeight: 700, color: colorConv(r.taux_conversion),
-                    }}>{fmtPct(r.taux_conversion)}</span>
-                    <div style={{ fontSize: 10, color: '#aaa', fontVariantNumeric: 'tabular-nums' }}>{r.nb_clients_actifs} / {r.nb_clients_total}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Bar value={r.nb_clients_actifs} max={maxConv} color={colorConv(r.taux_conversion)} bg={bgConv(r.taux_conversion)} />
-                  <span style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', minWidth: 70, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {r.nb_clients_inactifs} inactif{r.nb_clients_inactifs > 1 ? 's' : ''}
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div style={{ padding: '0 8px' }}>
+            {(() => {
+              const CONV_GAMME_CONFIG: Record<string, { label: string }> = {
+                VOLAILLE: { label: '🐔 Volaille' },
+                FARINE:   { label: '🌾 Farine' },
+                PATES:    { label: '🍝 Pâtes' },
+                BETAIL:   { label: '🐄 Bétail' },
+              }
+              const tabItems = Object.entries(CONV_GAMME_CONFIG).map(([key, cfg]) => {
+                const gammeRows = (rankingConvGamme[key] ?? []).filter(r => {
+                  if (!regionId) return true
+                  const reg = regions.find((rg: any) => rg.id === regionId)
+                  return reg && r.zone === reg.nom
+                })
+                const maxActifs = Math.max(...gammeRows.map(r => r.nb_clients_actifs), 1)
+                return {
+                  key,
+                  label: <span style={{ fontWeight: 600, fontSize: 12 }}>{cfg.label}</span>,
+                  children: gammeRows.length === 0 ? (
+                    <p style={{ textAlign: 'center', color: '#aaa', padding: 24 }}>Aucune donnée</p>
+                  ) : (
+                    <div style={{ padding: '4px 0' }}>
+                      {gammeRows.map((r, i) => (
+                        <div key={r.employee_id} style={{
+                          padding: '8px 8px',
+                          borderBottom: i < gammeRows.length - 1 ? '1px solid #f5f5f5' : 'none',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <RankBadge rank={i + 1} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: 12, color: '#222', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nom}</div>
+                              <div style={{ fontSize: 10, color: '#aaa' }}>{r.zone} · {ROLE_LABELS[r.type_poste] ?? r.type_poste}</div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <span style={{
+                                fontFamily: "'Barlow Condensed', sans-serif",
+                                fontSize: 18, fontWeight: 700, color: colorConv(r.taux_conversion),
+                              }}>{fmtPct(r.taux_conversion)}</span>
+                              <div style={{ fontSize: 10, color: '#aaa', fontVariantNumeric: 'tabular-nums' }}>{r.nb_clients_actifs} / {r.nb_clients_total}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Bar value={r.nb_clients_actifs} max={maxActifs} color={colorConv(r.taux_conversion)} bg={bgConv(r.taux_conversion)} />
+                            <span style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', minWidth: 65, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {r.nb_clients_inactifs} inactif{r.nb_clients_inactifs > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                }
+              })
+              return <Tabs items={tabItems} defaultActiveKey="FARINE" size="small" />
+            })()}
           </div>
         </div>
       </div>
